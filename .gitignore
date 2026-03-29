@@ -1,0 +1,5 @@
+*.ppm
+*.tga
+*.o
+main
+results/
