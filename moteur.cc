@@ -1,4 +1,4 @@
-#include "utils/scene.hh"
+#include "moteur.hh"
 
 #include <algorithm>
 #include <cmath>
@@ -6,87 +6,68 @@
 #include <memory>
 #include <ctime>
 
+#include "utils/scene.hh"
 #include "image/image.hh"
 #include "objects/sphere.hh"
 #include "objects/triangle.hh"
-// #include "objects/complex.hh"
 #include "light/point_light.hh"
 #include "light/circle_light.hh"
+#include "texture/UniformTexture.hh"
 
-#define NB_RAYS 1
+template <typename T, typename U>
+using pair = std::pair<T, U>;
+
+template <typename T>
+using optional = std::optional<T>;
+
+template <typename T>
+using vector = std::vector<T>;
 
 int val = -1;
 
-/**
- * Returns the euclidian norm/Distance between two points
- * 
- * Reminder:                    
- *      In R^3:
- *          v1 = (x1, y1, z1)
- *          v2 = (x2, y2, z2) 
- * 
- * ||v1 - v2|| = sqrt(
- *      (x1 - x2)^2
- *    + (y1 - y2)^2
- *    + (z1 - z2)^2
- * )
- */
-float distance(const Point4& p1, const Point4& p2)
-{
-    // Norm computation
-    return std::sqrt(
-        std::pow(p1.x - p2.x, 2) +
-        std::pow(p1.y - p2.y, 2) +
-        std::pow(p1.z - p2.z, 2)
-    );
+void printProgressBar(int progress, int total, int barWidth = 50) {
+    static int lastPercent = -1;
+    int percent = (int)((float)progress / total * 100);
+    if (percent == lastPercent) return;
+    lastPercent = percent;
+
+    int filled = percent * barWidth / 100;
+
+    std::string bar(filled, '#');
+    bar = "\033[32m" + bar;
+    bar += "\033[31m";
+    bar += std::string(barWidth - filled, '-');
+    bar += "\033[0m";
+
+    printf("\r[%s] %d%%", bar.c_str(), percent);
+    fflush(stdout);
 }
 
-/**
- * Returns the result of the cross product between v1 and v2
- * 
- * Reminder:
- *      In R^3:
- *          v1 = (x1, y1, z1)
- *          v2 = (x2, y2, z2) 
- *
- * ==>  | i  j  k  |
- *      | x1 y1 z1 |
- *      | x2 y2 z2 |
- * 
- * v1 x v2 = 
- *      i * (y1 * z2 - z1 * y2),
- *    - j * (x1 * z2 - x2 * z1),
- *    + k * (x1 * y2 - x2 * y1)
-*/
-Vector4 cross_product(const Vector4& v1, const Vector4& v2)
+struct BRDF
 {
-    return Vector4(
-        v1.y * v2.z - v1.z * v2.y,
-        -(v1.x * v2.z - v1.z * v2.x),
-        v1.x * v2.y - v1.y * v2.x
-    );
-}
+    Vector4 V; // View vector
+    Vector4 N; // Normal vector
+    Vector4 L; // Light vector
+    Vector4 H; // Half between V and L
+    Vector4 R; // Perfect Reflected ray
+};
 
-/**
- * Computes the dot product between two vector
- * 
- * Reminder:
- *      In R^3:
- *          v1 = (x1, y1, z1)
- *          v2 = (x2, y2, z2)
- * 
- * <v1, v2> = x1*x2 + y1*y2 + z1*z2
- * 
- * N.B.: Here the function calls the overrident * operator
- *       and clamps it to zero
- */
-float dot_product(const Vector4& light, const Vector4& point)
+struct LightComputation
 {
-    float val = light * point;
-    if (val < 0)
-        return 0;
-    return val;
-}
+    Color *color = nullptr;
+    float kd = 0; // Diffuse reflection
+    float ks = 0; // Specular reflection
+    float li = 0; // Light power
+    float ns = 0; // Shininess factor
+    float nl = 0; // Dot Product between light and normal vector 
+    float li_red = 0; // Light power for the RED Canal
+    float li_blue = 0; // Light power for the BLUE Canal
+    float li_green = 0; // Light power for the GREEN Canal
+    float products = 0; // Dot Product between light and reflected vector
+    float contribution_red = 0; // Contribution for the RED canal of other objects
+    float contribution_blue = 0; // Contribution for the BLUE canal of other objects
+    float contribution_green = 0; // Contribution for the GREEN canal of other objects
+};
 
 /**
  * Computes the diffuse light received using the parameters:
@@ -100,12 +81,13 @@ float dot_product(const Vector4& light, const Vector4& point)
  *      - N = the normal to the point hit by the ray
  *      - Li = the ray sent towards the light
  */
-float compute_diffuse_light(const float& kd, const float& color, float& lightPower, float& dotProduct)
+float compute_diffuse_light(LightComputation& variables, const int& canal)
 {
-    lightPower = lightPower > 1 ? 1 : lightPower;
-    dotProduct = dotProduct > 1 ? 1 : dotProduct;
+    variables.li = variables.li > 1 ? 1 : variables.li;
+    variables.nl = variables.nl > 1 ? 1 : variables.nl;
 
-    auto val = kd * color * lightPower * dotProduct;
+    auto color = *(variables.color);
+    auto val = variables.kd * (color[canal] / 255.) * variables.li * variables.nl;
     return val > 1 ? 1 : val;
 }
 
@@ -121,22 +103,44 @@ float compute_diffuse_light(const float& kd, const float& color, float& lightPow
  *      - N = the normal to the point hit by the ray
  *      - Li = the ray sent towards the light
  */
-float compute_specular_light(const TextureInfo& info, const float& color, float& lightPower, float& dotProduct)
+float compute_specular_light(LightComputation& variables, const int& canal)
 {
-    lightPower = lightPower > 1 ? 1 : lightPower;
-    dotProduct = dotProduct > 1 ? 1 : dotProduct;
+    variables.li = variables.li > 1 ? 1 : variables.li;
+    variables.products = variables.products > 1 ? 1 : variables.products;
 
-    auto val = info.ks * color * lightPower * std::pow(dotProduct, info.ns);
+    auto color = *(variables.color);
+    auto val = variables.ks * (color[canal] / 255.) * variables.li * std::pow(variables.products, variables.ns);
     return val > 1 ? 1 : val;
 }
 
+Color compute_color(LightComputation& variables)
+{
+    // auto brdfLambertian = (variables.kd / std::PI) * dot(brdf.N,brdf.L)
 
-std::pair<std::optional<Point4>, Object*> bvh_intersect(
-    const std::vector<BVHNode>& pool,
-    const std::vector<Object*>& objs,
-    const Point4& origin,
-    const Vector4& dir,
-    int node_idx = 0)
+    // Compute diffuse color
+    auto diff_red = compute_diffuse_light(variables, RED);
+    auto diff_green = compute_diffuse_light(variables, GREEN);
+    auto diff_blue = compute_diffuse_light(variables, BLUE);
+
+    // Compute specular color
+    auto spec_red = compute_specular_light(variables, RED);
+    auto spec_green = compute_specular_light(variables, GREEN);
+    auto spec_blue = compute_specular_light(variables, BLUE);
+
+    // Compute contribution color
+    auto contr_red = variables.li_red * variables.nl;
+    auto contr_green = variables.li_green * variables.nl;
+    auto contr_blue = variables.li_blue * variables.nl;
+
+    // Sum all 3
+    auto red = std::min(1.0f, diff_red + spec_red + contr_red);
+    auto green = std::min(1.0f, diff_green + spec_green + contr_green);
+    auto blue = std::min(1.0f, diff_blue + spec_blue + contr_blue);
+
+    return Color(255 * red, 255 * green, 255 * blue);
+}
+
+std::pair<optional<Point4>, Object*> bvh_intersect(const vector<BVHNode>& pool, const vector<Object*>& objs, const Point4& origin, const Vector4& dir, int node_idx = 0)
 {
     const BVHNode& node = pool[node_idx];
 
@@ -146,7 +150,7 @@ std::pair<std::optional<Point4>, Object*> bvh_intersect(
     if (node.is_leaf()) {
         // Linear search within the leaf (at most 4 objects for now)
         float best_dist = std::numeric_limits<float>::max();
-        std::optional<Point4> best_hit = std::nullopt;
+        optional<Point4> best_hit = std::nullopt;
         Object *best_obj = nullptr;
 
         for (int i = node.obj_start; i < node.obj_start + node.obj_count; i++) {
@@ -181,24 +185,18 @@ std::pair<std::optional<Point4>, Object*> bvh_intersect(
         : std::make_pair(rhit, robj);
 }
 
-Color compute_color(const Point4& hit, Object* obj, const Scene& scene, int depth)
+Color cast_ray(const Point4& hit, Object* obj, Scene& scene, int depth)
 {
     if (depth == 5)
         return Color();
 
     // Instantiate all variables we need to compute the color of the pixels
     TextureInfo info = obj->get_texture(hit);
-    Color *color = info.color;
-    float kd = info.kd;
-    float li = 0;
-    float li_red = 0;
-    float li_blue = 0;
-    float li_green = 0;
-    float nl = 0;
-    float products = 0;
-    float contribution_red = 0;
-    float contribution_green = 0;
-    float contribution_blue = 0;
+    LightComputation variables;
+    variables.color = info.color;
+    variables.kd = info.kd;
+    variables.ks = info.ks;
+    variables.ns = info.ns;
 
     // Compute normal vector
     auto normal_vect = obj->get_normal(hit);
@@ -220,10 +218,10 @@ Color compute_color(const Point4& hit, Object* obj, const Scene& scene, int dept
         float b = light->color.colors[BLUE]  / 255.f;
 
         // Tint: how much each channel is boosted relative to a white light
-        li += light->power;
-        li_red += light->power * r;
-        li_blue += light->power * g;
-        li_green += light->power * b;
+        variables.li += light->power;
+        variables.li_red += light->power * r;
+        variables.li_blue += light->power * g;
+        variables.li_green += light->power * b;
         // std::cout << "light red: c << int(light->color.colors[GREEN]) << std::endl;
 
         std::vector<Point4> lightSamples;
@@ -250,7 +248,7 @@ Color compute_color(const Point4& hit, Object* obj, const Scene& scene, int dept
         float spec_local = 0;
 
         // For each sample, check if it's visible from the hit point
-        for (const auto& sample : lightSamples)
+        for (auto& sample : lightSamples)
         {
             // Compute light vector
             auto Li = Vector4(sample - hit);
@@ -284,82 +282,21 @@ Color compute_color(const Point4& hit, Object* obj, const Scene& scene, int dept
         float nSamples = static_cast<float>(lightSamples.size());
         float visibility = visibleCount / nSamples;
 
-        nl += visibility * (nl_local / nSamples);
-        products += visibility * (spec_local / nSamples);
+        variables.nl += visibility * (nl_local / nSamples);
+        variables.products += visibility * (spec_local / nSamples);
     }
 
     // Recursively call the function for other objects contribution
     auto [refl_hit, refl_obj] = bvh_intersect(scene.bvh_pool, scene.objects, hit, R);
     if (refl_hit && refl_obj != obj)
     {
-        auto new_color = compute_color(*refl_hit, refl_obj, scene, depth + 1);
-        contribution_red   += info.ks * new_color.colors[RED] / 255.;
-        contribution_green += info.ks * new_color.colors[GREEN] / 255.;
-        contribution_blue  += info.ks * new_color.colors[BLUE] / 255.;
+        auto new_color = cast_ray(*refl_hit, refl_obj, scene, depth + 1);
+        variables.contribution_red   += info.ks * new_color.colors[RED] / 255.;
+        variables.contribution_green += info.ks * new_color.colors[GREEN] / 255.;
+        variables.contribution_blue  += info.ks * new_color.colors[BLUE] / 255.;
     }
 
-    // Clamp values
-    li = li > 1 ? 1 : li;
-    // std::cout << "li_red: " << li_red << std::endl;
-    // std::cout << "li_blue: " << li_blue << std::endl;
-    // std::cout << "li_green: " << li_green << std::endl;
-    nl = nl > 1 ? 1 : nl;
-
-    // Compute diffuse and specular contribution for each color channel
-    auto diff_red = compute_diffuse_light(kd, (color->colors[RED] / 255.), li, nl);
-    auto diff_green = compute_diffuse_light(kd, (color->colors[GREEN] / 255.), li, nl);
-    auto diff_blue = compute_diffuse_light(kd, (color->colors[BLUE] / 255.), li, nl);
-
-    // DEBUGGING
-    // if (val == 4)
-    // {
-    //     std::cout << "object nb." << val << "\n\t- diff_red: " << diff_red
-    //             << "\n\t- diff_green: " << diff_green
-    //             << "\n\t- diff_blue: " << diff_blue << std::endl; 
-    //     std::cout << "R: " << int(color->colors[RED]) << std::endl;
-    //     std::cout << "G: " << int(color->colors[GREEN]) << std::endl;
-    //     std::cout << "B: " << int(color->colors[BLUE]) << std::endl;
-    //     std::cout << "kd: " << kd << std::endl;
-    //     std::cout << "li: " << li << std::endl;
-    //     std::cout << "nl: " << nl << std::endl;
-    // }
-
-    auto spec_red = compute_specular_light(info, (color->colors[RED] / 255.), li, products);
-    auto spec_green = compute_specular_light(info, (color->colors[GREEN] / 255.), li, products);
-    auto spec_blue = compute_specular_light(info, (color->colors[BLUE] / 255.), li, products);
-
-    auto red = std::min(1.0f, diff_red + spec_red + li_red * nl);
-    auto green = std::min(1.0f, diff_green + spec_green + li_green * nl);
-    auto blue = std::min(1.0f, diff_blue + spec_blue + li_blue * nl);
-
-    return Color(255 * red, 255 * green, 255 * blue);
-}
-
-std::pair<std::optional<Point4>, Object*> find_closest_intersection(const Point4& ray_origin, const Vector4& ray_dir, const std::vector<Object*>& objects)
-{
-    float closest_dist = std::numeric_limits<float>::max();
-    std::optional<Point4> closest_hit = std::nullopt;
-    Object *closest_obj = nullptr;
-
-    int index = 0;
-    for (auto obj : objects)
-    {
-        auto hit = obj->intersect(ray_origin, ray_dir);
-        if (hit != std::nullopt)
-        {
-            float dist = distance(ray_origin, *hit);
-            if (dist < closest_dist)
-            {
-                closest_dist = dist;
-                closest_hit = hit;
-                closest_obj = obj;
-                val = index;
-            }
-        }
-        index++;
-    }
-
-    return {closest_hit, closest_obj};
+    return compute_color(variables, info);
 }
 
 std::pair<Vector4, Vector4> get_basis(const Camera& cam)
@@ -392,24 +329,6 @@ std::pair<float, float> get_camera_plane(const Camera& cam)
     return {W, H};
 }
 
-void printProgressBar(int progress, int total, int barWidth = 50) {
-    static int lastPercent = -1;
-    int percent = (int)((float)progress / total * 100);
-    if (percent == lastPercent) return;
-    lastPercent = percent;
-
-    int filled = percent * barWidth / 100;
-
-    std::string bar(filled, '#');
-    bar = "\033[32m" + bar;
-    bar += "\033[31m";
-    bar += std::string(barWidth - filled, '-');
-    bar += "\033[0m";
-
-    printf("\r[%s] %d%%", bar.c_str(), percent);
-    fflush(stdout);
-}
-
 PPM computeScene(Scene& scene, const int& image_h, const int& image_w)
 {
     PPM img(image_h, image_w);
@@ -426,10 +345,7 @@ PPM computeScene(Scene& scene, const int& image_h, const int& image_w)
     // Get camera plane basis
     auto [horizontal, real_up] = get_basis(cam);
 
-    time_t start = std::time(nullptr);
     scene.build_bvh();
-    time_t end = std::time(nullptr);
-    std::cout << "Took " << end - start << "s to build the BVH\n";
 
     for (int i = 0; i < image_h; i++)
     {
@@ -465,10 +381,10 @@ PPM computeScene(Scene& scene, const int& image_h, const int& image_w)
                     continue;
 
                 // Compute its color and add it to the pixel color
-                auto p = compute_color(*intersection, obj, scene, 0);
-                red += p.colors[RED];
-                green += p.colors[GREEN];
-                blue += p.colors[BLUE];
+                auto color = cast_ray(*intersection, obj, scene, 0);
+                red += color.colors[RED];
+                green += color.colors[GREEN];
+                blue += color.colors[BLUE];
             }
 
             // Average values of each ray
@@ -533,7 +449,7 @@ int main(int argc, char **argv)
     Triangle triangle46 = Triangle(Point4(-3, 7, 15), Point4(15, 7, 15), Point4(15, 7, 10), uniform_flat_blue);
     // Complex *obj = new Complex(vec);
 
-    PointLight top_light(Point4(0, 0, 5), 0.8, Color(255, 255, 255));
+    PointLight top_light(Point4(0, 0, 5), 0.8);
     PointLight bot_light(Point4(3, 0, 2), 0.6);
     CircleLight circle_light(Point4(18, -5, 8), 0.6, 3, Point4(-7, 8, 6));
 

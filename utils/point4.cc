@@ -47,3 +47,14 @@ void Point4::rotateZ(const float& angle)
     this->x = std::cos(angle) * x - std::sin(angle) * y;
     this->y = std::sin(angle) * x + std::cos(angle) * y;
 }
+
+
+float distance(const Point4& p1, const Point4& p2)
+{
+    // Norm computation
+    return std::sqrt(
+        std::pow(p1.x - p2.x, 2) +
+        std::pow(p1.y - p2.y, 2) +
+        std::pow(p1.z - p2.z, 2)
+    );
+}

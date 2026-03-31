@@ -85,6 +85,7 @@ CircleLight::CircleLight(const Point4& p, const float& power, const float& rad, 
 {
     position = p;
     this->power = power;
+    color = Color();
     radius = rad;
     direction = dir;
 }

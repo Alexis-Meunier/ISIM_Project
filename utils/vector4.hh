@@ -13,6 +13,17 @@ class Vector4
         Vector4(const Point4& p);
         Vector4(const float& x_, const float& y_, const float& z_);
 
+
+        // Arithmetic
+        Vector4 operator+(const Vector4& p);
+        Vector4 operator-(const Vector4& p);
+        Vector4 operator*(const double& scalar); // Translation
+        float operator*(const Vector4& p); // Dot product
+
+        // Debugging
+        std::ostream& operator<<(std::ostream& os);
+
+        // Indexing
         float& operator[](size_t idx);
         float operator[](size_t idx) const;
 
@@ -24,60 +35,39 @@ class Vector4
         float i;
 };
 
-inline Vector4 operator+(const Vector4& p1, const Vector4& p2)
-{
-    return Vector4(p1.x + p2.x, p1.y + p2.y, p1.z + p2.z, 1);
-}
 
-inline Vector4 operator-(const Vector4& p1, const Vector4& p2)
-{
-    return Vector4(p1.x - p2.x, p1.y - p2.y, p1.z - p2.z, 1);
-}
+/**
+ * Returns the result of the cross product between v1 and v2
+ * 
+ * Reminder:
+ *      In R^3:
+ *          v1 = (x1, y1, z1)
+ *          v2 = (x2, y2, z2) 
+ *
+ * ==>  | i  j  k  |
+ *      | x1 y1 z1 |
+ *      | x2 y2 z2 |
+ * 
+ * v1 x v2 = 
+ *      i * (y1 * z2 - z1 * y2),
+ *    - j * (x1 * z2 - x2 * z1),
+ *    + k * (x1 * y2 - x2 * y1)
+*/
+Vector4 cross_product(Vector4& v1, const Vector4& v2);
 
-inline Vector4 operator*(const Vector4& p, const double& scalar)
-{
-    return Vector4(p.x * scalar, p.y * scalar, p.z * scalar,1);
-}
+/**
+ * Computes the dot product between two vector
+ * 
+ * Reminder:
+ *      In R^3:
+ *          v1 = (x1, y1, z1)
+ *          v2 = (x2, y2, z2)
+ * 
+ * <v1, v2> = x1*x2 + y1*y2 + z1*z2
+ * 
+ * N.B.: Here the function calls the overrident * operator
+ *       and clamps it to zero
+ */
+float dot_product(Vector4& light, const Vector4& point);
 
-inline float operator*(const Vector4& p1, const Vector4& p2)
-{
-    return p1.x * p2.x + p1.y * p2.y + p1.z * p2.z;
-}
-
-inline std::ostream& operator<<(std::ostream& os, const Vector4& p)
-{
-    os << "(" << p.x << ", " << p.y << ", " << p.z << ", " << p.i << ")" << std::endl;
-    return os;
-}
-
-inline float& Vector4::operator[](size_t idx) {
-    switch(idx)
-    {
-        case 0:
-            return x;
-        case 1:
-            return y;
-        case 2:
-            return z;
-        case 3:
-            return i;
-        default:
-            throw std::out_of_range("Vector4 indexing gone wrong");
-    }
-}
-
-inline float Vector4::operator[](size_t idx) const {
-    switch(idx)
-    {
-        case 0:
-            return x;
-        case 1:
-            return y;
-        case 2:
-            return z;
-        case 3:
-            return i;
-        default:
-            throw std::out_of_range("Vector4 indexing gone wrong");
-    }
-}
+#include "vector4.hxx"

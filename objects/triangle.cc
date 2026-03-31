@@ -2,6 +2,8 @@
 
 #include <cmath>
 
+#include "../texture/UniformTexture.hh"
+
 inline Vector4 cross_product(const Vector4& v1, const Vector4& v2)
 {
     return Vector4(v1.y * v2.z - v1.z * v2.y, -(v1.x * v2.z - v1.z * v2.x), v1.x * v2.y - v1.y * v2.x);
@@ -11,6 +13,8 @@ Triangle::Triangle(const Point4& p1, const Point4& p2, const Point4& p3)
 {
     this->p1 = p1;
     this->p2 = p2;
+    this->p3 = p3;
+    texture = std::make_shared<UniformTexture>();
 
     auto CB = Vector4(p2.x - p3.x, p2.y - p3.y, p2.z - p3.z);
     auto CA = Vector4(p1.x - p3.x, p1.y - p3.y, p1.z - p3.z);

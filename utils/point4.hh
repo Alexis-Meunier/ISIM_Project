@@ -14,6 +14,16 @@ class Point4
         void rotateY(const float& angle);
         void rotateZ(const float& angle);
 
+        // Arithmetic
+        Point4 operator+(const Point4& p);
+        Point4 operator-(const Point4& p);
+        Point4 operator*(const double& scalar); // Translation
+        float operator*(const Point4& p); // Dot product
+
+        // Debugging
+        std::ostream& operator<<(std::ostream& os);
+
+        // Indexing
         float& operator[](size_t idx);
         float operator[](size_t idx) const;
 
@@ -23,60 +33,20 @@ class Point4
         float i;
 };
 
-inline Point4 operator+(const Point4& p1, const Point4& p2)
-{
-    return Point4(p1.x + p2.x, p1.y + p2.y, p1.z + p2.z, 1);
-}
+/**
+ * Returns the euclidian norm/Distance between two points
+ * 
+ * Reminder:                    
+ *      In R^3:
+ *          v1 = (x1, y1, z1)
+ *          v2 = (x2, y2, z2) 
+ * 
+ * ||v1 - v2|| = sqrt(
+ *      (x1 - x2)^2
+ *    + (y1 - y2)^2
+ *    + (z1 - z2)^2
+ * )
+ */
+float distance(const Point4& p1, const Point4& p2);
 
-inline Point4 operator-(const Point4& p1, const Point4& p2)
-{
-    return Point4(p1.x - p2.x, p1.y - p2.y, p1.z - p2.z, 1);
-}
-
-inline Point4 operator*(const Point4& p, const double& scalar)
-{
-    return Point4(p.x * scalar, p.y * scalar, p.z * scalar, 1);
-}
-
-inline float operator*(const Point4& p1, const Point4& p2)
-{
-    return p1.x * p2.x + p1.y * p2.y + p1.z * p2.z;
-}
-
-inline std::ostream& operator<<(std::ostream& os, const Point4& p)
-{
-    os << "(" << p.x << ", " << p.y << ", " << p.z << ", " << p.i << ")" << std::endl;
-    return os;
-}
-
-inline float& Point4::operator[](size_t idx) {
-    switch(idx)
-    {
-        case 0:
-            return x;
-        case 1:
-            return y;
-        case 2:
-            return z;
-        case 3:
-            return i;
-        default:
-            throw std::out_of_range("Point4 indexing gone wrong");
-    }
-}
-
-inline float Point4::operator[](size_t idx) const {
-    switch(idx)
-    {
-        case 0:
-            return x;
-        case 1:
-            return y;
-        case 2:
-            return z;
-        case 3:
-            return i;
-        default:
-            throw std::out_of_range("Point4 indexing gone wrong");
-    }
-}
+#include "point4.hxx"

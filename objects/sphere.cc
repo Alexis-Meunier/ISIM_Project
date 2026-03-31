@@ -2,6 +2,8 @@
 
 #include <cmath>
 
+#include "../texture/UniformTexture.hh"
+
 Sphere::Sphere()
 {
     center = Point4();

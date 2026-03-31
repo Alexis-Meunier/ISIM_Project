@@ -13,7 +13,7 @@ PointLight::PointLight(const Point4& p)
 {
     this->power = 1;
     this->position = p;
-    color = Color(255, 255, 255);
+    color = Color();
 }
 
 
@@ -21,14 +21,14 @@ PointLight::PointLight(const float& power)
 {
     this->power = clamp(power, 0, 1);
     this->position = Point4(0, 0, 0);
-    color = Color(255, 255, 255);
+    color = Color();
 }
 
 PointLight::PointLight(const Point4& p, const float& power)
 {
     this->position = p;
     this->power = clamp(power, 0, 1);
-    color = Color(255, 255, 255);
+    color = Color();
 }
 
 PointLight::PointLight(const Point4& p, const float& power, const Color& color)

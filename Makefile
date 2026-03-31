@@ -16,7 +16,7 @@ SKEL_CPP_FILES = objects/sphere.cc \
 				 image/image.cc \
 				 light/circle_light.cc \
 				 light/point_light.cc \
-				 texture/texture.cc \
+				 texture/UniformTexture.cc \
 				 utils/color.cc \
 				 utils/scene.cc \
 				 utils/vector4.cc \

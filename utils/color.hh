@@ -30,39 +30,14 @@ class Color
     Color(const uint8_t& r, const uint8_t& g, const uint8_t& b);
     Color(const Color& p);
 
+    uint8_t operator[](const int& idx) const;
+    uint8_t& operator[](const int& idx);
+    Color operator+(const Value& c);
+    Color operator-(const Value& c);
+    Color operator*();
+    std::ostream& operator<<(std::ostream& os);
+
     std::vector<uint8_t> colors;    
 };
 
-inline Color operator+(Color& p, const Value& c)
-{
-    if (c.canal == GRAY)
-    {
-        return Color(p.colors[0] + c.value, p.colors[1] + c.value, p.colors[2] + c.value);
-    }
-    else
-    {
-        p.colors[c.canal] += c.value;
-        return Color(p.colors[0], p.colors[1], p.colors[2]);
-    }
-}
-
-inline Color operator-(Color& p, const Value& c)
-{
-    if (c.canal == GRAY)
-    {
-        return Color(p.colors[0] - c.value, p.colors[1] - c.value, p.colors[2] - c.value);
-    }
-    else
-    {
-        p.colors[c.canal] -= c.value;
-        return Color(p.colors[0], p.colors[1], p.colors[2]);
-    }
-}
-
-inline std::ostream& operator<<(std::ostream& os, const Color& p)
-{
-    os << "R: " << int(p.colors[0]) << std::endl;
-    os << "G: " << int(p.colors[1]) << std::endl;
-    os << "B: " << int(p.colors[2]) << std::endl;
-    return os;
-}
+#include "color.hxx"

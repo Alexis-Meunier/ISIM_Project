@@ -55,3 +55,19 @@ void Vector4::normalize()
     }
 }
 
+Vector4 cross_product(Vector4& v1, const Vector4& v2)
+{
+    return Vector4(
+        v1.y * v2.z - v1.z * v2.y,
+        -(v1.x * v2.z - v1.z * v2.x),
+        v1.x * v2.y - v1.y * v2.x
+    );
+}
+
+float dot_product(Vector4& light, const Vector4& point)
+{
+    float val = light * point;
+    if (val < 0)
+        return 0;
+    return val;
+}
