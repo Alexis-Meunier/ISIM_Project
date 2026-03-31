@@ -296,7 +296,7 @@ Color cast_ray(const Point4& hit, Object* obj, Scene& scene, int depth)
         variables.contribution_blue  += info.ks * new_color.colors[BLUE] / 255.;
     }
 
-    return compute_color(variables, info);
+    return compute_color(variables);
 }
 
 std::pair<Vector4, Vector4> get_basis(const Camera& cam)
