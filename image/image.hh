@@ -9,7 +9,7 @@ class Image
 public:
     int height;
     int width;
-    std::vector<Pixel*> pixels;
+    std::vector<Color*> pixels;
 
 protected:
     Image() = default;

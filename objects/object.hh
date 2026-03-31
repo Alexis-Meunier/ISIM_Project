@@ -1,11 +1,13 @@
 #pragma once
 
+#include "bvh.hh"
+
 #include "../texture/texture.hh"
 #include "../utils/vector4.hh"
 #include "../utils/point4.hh"
 
 #include <optional>
-#include "bvh.hh"
+#include <memory>
 
 class Object
 {
@@ -17,5 +19,5 @@ public:
     virtual TextureInfo get_texture(const Point4& p) = 0;
     virtual AABB get_bounds() const = 0;
 
-    UniformTexture texture;
+    std::shared_ptr<TextureMaterial> texture = nullptr;
 };

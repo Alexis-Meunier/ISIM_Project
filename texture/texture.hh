@@ -6,10 +6,11 @@
 
 struct TextureInfo
 {
-    float kd;
-    float ks;
-    float ns;
-    Pixel *color;
+    float kd; // diffuse reflection
+    float ks; // specular reflection
+    float ka; // ambient reflection 
+    float ns; // shininess constant
+    Color *color; // Color of the light
 };
 
 class TextureMaterial
@@ -27,7 +28,8 @@ class UniformTexture : public TextureMaterial
 public:
     UniformTexture();
     UniformTexture(const TextureInfo& info);
-    UniformTexture(const Pixel& info);
+    UniformTexture(const UniformTexture& info);
+    UniformTexture(const Color& info);
 
     TextureInfo get_elements(Point4 position) override;
 };

@@ -6,8 +6,8 @@
 class Triangle : public Object {
 public:
     Triangle(const Point4& p1, const Point4& p2, const Point4& p3);
-    Triangle(const Point4& p1, const Point4& p2, const Point4& p3, const UniformTexture& text);
-    Triangle(const UniformTexture& text);
+    Triangle(const Point4& p1, const Point4& p2, const Point4& p3, const std::shared_ptr<TextureMaterial>& text);
+    Triangle(const std::shared_ptr<TextureMaterial>& text);
 
     std::optional<Point4> intersect(const Point4& start, const Vector4& norm) override;
     Vector4 get_normal(const Point4& p) override;

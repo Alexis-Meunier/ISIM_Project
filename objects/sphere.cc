@@ -5,7 +5,7 @@
 Sphere::Sphere()
 {
     center = Point4();
-    texture = UniformTexture();
+    texture = std::make_shared<UniformTexture>();
     radius = 1;
 }
 
@@ -17,11 +17,11 @@ Sphere::Sphere(const double& rad)
     }
 
     center = Point4();
-    texture = UniformTexture();
+    texture = std::make_shared<UniformTexture>();
     radius = rad;
 }
 
-Sphere::Sphere(const UniformTexture& text, const Point4& vec, const double& rad)
+Sphere::Sphere(const std::shared_ptr<TextureMaterial>& text, const Point4& vec, const double& rad)
 {
     if (rad <= 0)
     {
@@ -41,12 +41,12 @@ Sphere::Sphere(const Point4& vec, const double& rad)
     }
 
     center = vec;
-    texture = UniformTexture();
+    texture = std::make_shared<UniformTexture>();
     radius = rad;
 }
 
 
-Sphere::Sphere(const UniformTexture& text, const double& rad)
+Sphere::Sphere(const std::shared_ptr<TextureMaterial>& text, const double& rad)
 {
     if (rad <= 0)
     {
@@ -58,6 +58,7 @@ Sphere::Sphere(const UniformTexture& text, const double& rad)
     radius = rad;
 }
 
+// TODO: This was made by hand, there might be faster algorithms ?
 std::optional<Point4> Sphere::intersect(const Point4& start, const Vector4& norm)
 {
     float dx = start.x - center.x;
@@ -105,7 +106,7 @@ Vector4 Sphere::get_normal(const Point4& intersection)
 
 TextureInfo Sphere::get_texture(const Point4& v)
 {
-    return texture.get_elements(v);
+    return texture->get_elements(v);
 }
 
 AABB Sphere::get_bounds() const {

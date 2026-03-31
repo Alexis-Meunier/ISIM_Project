@@ -12,54 +12,54 @@ enum Canal
     GRAY
 };
 
-class Color
+class Value
 {
     public:
-    Color() : canal(GRAY), value(0) {};
-    Color(const Canal& canal_, const uint8_t& value_);
-    Color(const Color& c);
+    Value() : canal(GRAY), value(0) {};
+    Value(const Canal& canal_, const uint8_t& value_);
+    Value(const Value& c);
 
     Canal canal;
     uint8_t value;
 };
 
-class Pixel
+class Color
 {
     public:
-    Pixel();
-    Pixel(const uint8_t& r, const uint8_t& g, const uint8_t& b);
-    Pixel(const Pixel& p);
+    Color();
+    Color(const uint8_t& r, const uint8_t& g, const uint8_t& b);
+    Color(const Color& p);
 
     std::vector<uint8_t> colors;    
 };
 
-inline Pixel operator+(Pixel& p, const Color& c)
+inline Color operator+(Color& p, const Value& c)
 {
     if (c.canal == GRAY)
     {
-        return Pixel(p.colors[0] + c.value, p.colors[1] + c.value, p.colors[2] + c.value);
+        return Color(p.colors[0] + c.value, p.colors[1] + c.value, p.colors[2] + c.value);
     }
     else
     {
         p.colors[c.canal] += c.value;
-        return Pixel(p.colors[0], p.colors[1], p.colors[2]);
+        return Color(p.colors[0], p.colors[1], p.colors[2]);
     }
 }
 
-inline Pixel operator-(Pixel& p, const Color& c)
+inline Color operator-(Color& p, const Value& c)
 {
     if (c.canal == GRAY)
     {
-        return Pixel(p.colors[0] - c.value, p.colors[1] - c.value, p.colors[2] - c.value);
+        return Color(p.colors[0] - c.value, p.colors[1] - c.value, p.colors[2] - c.value);
     }
     else
     {
         p.colors[c.canal] -= c.value;
-        return Pixel(p.colors[0], p.colors[1], p.colors[2]);
+        return Color(p.colors[0], p.colors[1], p.colors[2]);
     }
 }
 
-inline std::ostream& operator<<(std::ostream& os, const Pixel& p)
+inline std::ostream& operator<<(std::ostream& os, const Color& p)
 {
     os << "R: " << int(p.colors[0]) << std::endl;
     os << "G: " << int(p.colors[1]) << std::endl;

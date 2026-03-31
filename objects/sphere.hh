@@ -7,8 +7,8 @@ class Sphere : public Object
 public:
     Sphere();
     Sphere(const double& rad);
-    Sphere(const UniformTexture& text, const Point4& vec, const double& rad);
-    Sphere(const UniformTexture& text, const double& rad);
+    Sphere(const std::shared_ptr<TextureMaterial>& text, const Point4& vec, const double& rad);
+    Sphere(const std::shared_ptr<TextureMaterial>& text, const double& rad);
     Sphere(const Point4& vec, const double& rad);
 
     std::optional<Point4> intersect(const Point4& start, const Vector4& norm) override;

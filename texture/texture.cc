@@ -11,18 +11,20 @@ UniformTexture::UniformTexture()
     TextureInfo textInfo;
     textInfo.kd = 1;
     textInfo.ks = 0.2;
+    textInfo.ka = 0.5;
     textInfo.ns = 0.8;
-    textInfo.color = new Pixel();
+    textInfo.color = new Color();
     info = textInfo;
 }
 
-UniformTexture::UniformTexture(const Pixel& color)
+UniformTexture::UniformTexture(const Color& color)
 {
     TextureInfo textInfo;
     textInfo.kd = 1;
     textInfo.ks = 0.2;
+    textInfo.ka = 0.5;
     textInfo.ns = 0.8;
-    textInfo.color = new Pixel(color);
+    textInfo.color = new Color(color);
     info = textInfo;
 }
 
@@ -30,6 +32,12 @@ UniformTexture::UniformTexture(const TextureInfo& info)
 {
     this->info = info;
 }
+
+UniformTexture::UniformTexture(const UniformTexture& info)
+{
+    this->info = info.info;
+}
+
 
 // TransparentTexture::TransparentTexture()
 // {

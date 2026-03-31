@@ -18,7 +18,7 @@ Triangle::Triangle(const Point4& p1, const Point4& p2, const Point4& p3)
     this->normal = cross_product(CB, CA);
 }
 
-Triangle::Triangle(const Point4& p1, const Point4& p2, const Point4& p3, const UniformTexture& info)
+Triangle::Triangle(const Point4& p1, const Point4& p2, const Point4& p3, const std::shared_ptr<TextureMaterial>& info)
 {
     this->p1 = p1;
     this->p2 = p2;
@@ -31,7 +31,7 @@ Triangle::Triangle(const Point4& p1, const Point4& p2, const Point4& p3, const U
     this->normal = cross_product(CB, CA);
 }
 
-Triangle::Triangle(const UniformTexture& info)
+Triangle::Triangle(const std::shared_ptr<TextureMaterial>& info)
 {
     this->p1 = Point4(1, 0, 8);
     this->p2 = Point4(0, std::sqrt(3), 8);
@@ -91,7 +91,7 @@ Vector4 Triangle::get_normal(const Point4& p)
 
 TextureInfo Triangle::get_texture(const Point4& p)
 {
-    return texture.get_elements(p);
+    return texture->get_elements(p);
 }
 
 AABB Triangle::get_bounds() const {

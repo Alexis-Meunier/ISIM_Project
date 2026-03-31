@@ -3,12 +3,13 @@
 #include <algorithm>
 #include <cmath>
 #include <random>
+#include <memory>
 #include <ctime>
 
 #include "image/image.hh"
 #include "objects/sphere.hh"
 #include "objects/triangle.hh"
-#include "objects/complex.hh"
+// #include "objects/complex.hh"
 #include "light/point_light.hh"
 #include "light/circle_light.hh"
 
@@ -180,16 +181,19 @@ std::pair<std::optional<Point4>, Object*> bvh_intersect(
         : std::make_pair(rhit, robj);
 }
 
-Pixel *compute_color(const Point4& hit, Object* obj, const Scene& scene, int depth)
+Color compute_color(const Point4& hit, Object* obj, const Scene& scene, int depth)
 {
     if (depth == 5)
-        return new Pixel();
+        return Color();
 
     // Instantiate all variables we need to compute the color of the pixels
     TextureInfo info = obj->get_texture(hit);
-    Pixel *color = info.color;
+    Color *color = info.color;
     float kd = info.kd;
     float li = 0;
+    float li_red = 0;
+    float li_blue = 0;
+    float li_green = 0;
     float nl = 0;
     float products = 0;
     float contribution_red = 0;
@@ -211,7 +215,16 @@ Pixel *compute_color(const Point4& hit, Object* obj, const Scene& scene, int dep
     // Compute light contribution for each light source
     for (Light *light : scene.lights)
     {
+        float r = light->color.colors[RED]   / 255.f;
+        float g = light->color.colors[GREEN] / 255.f;
+        float b = light->color.colors[BLUE]  / 255.f;
+
+        // Tint: how much each channel is boosted relative to a white light
         li += light->power;
+        li_red += light->power * r;
+        li_blue += light->power * g;
+        li_green += light->power * b;
+        // std::cout << "light red: c << int(light->color.colors[GREEN]) << std::endl;
 
         std::vector<Point4> lightSamples;
         if (auto* cl = dynamic_cast<CircleLight*>(light))
@@ -254,12 +267,6 @@ Pixel *compute_color(const Point4& hit, Object* obj, const Scene& scene, int dep
                     in_shadow = true;
             }
 
-            // DEBUGGING
-            // if (val == 4)
-            // {
-            //     std::cout << "in_shadow ? " << (in_shadow ? "true" : "false") << std::endl;
-            // }
-
             // If was intercepted add values
             if (!in_shadow)
             {
@@ -276,15 +283,6 @@ Pixel *compute_color(const Point4& hit, Object* obj, const Scene& scene, int dep
         // Average values for each sample
         float nSamples = static_cast<float>(lightSamples.size());
         float visibility = visibleCount / nSamples;
-    
-
-        // DEBUGGING
-        // if (val == 4)
-        // {
-        //     std::cout << "nl_local: " << nl_local << std::endl;
-        //     std::cout << "nSamples: " << nSamples << std::endl;
-        //     std::cout << "visibility: " << visibility << std::endl;
-        // }
 
         nl += visibility * (nl_local / nSamples);
         products += visibility * (spec_local / nSamples);
@@ -295,13 +293,16 @@ Pixel *compute_color(const Point4& hit, Object* obj, const Scene& scene, int dep
     if (refl_hit && refl_obj != obj)
     {
         auto new_color = compute_color(*refl_hit, refl_obj, scene, depth + 1);
-        contribution_red   += info.ks * new_color->colors[RED]   / 255.;
-        contribution_green += info.ks * new_color->colors[GREEN] / 255.;
-        contribution_blue  += info.ks * new_color->colors[BLUE]  / 255.;
+        contribution_red   += info.ks * new_color.colors[RED] / 255.;
+        contribution_green += info.ks * new_color.colors[GREEN] / 255.;
+        contribution_blue  += info.ks * new_color.colors[BLUE] / 255.;
     }
 
     // Clamp values
     li = li > 1 ? 1 : li;
+    // std::cout << "li_red: " << li_red << std::endl;
+    // std::cout << "li_blue: " << li_blue << std::endl;
+    // std::cout << "li_green: " << li_green << std::endl;
     nl = nl > 1 ? 1 : nl;
 
     // Compute diffuse and specular contribution for each color channel
@@ -327,11 +328,11 @@ Pixel *compute_color(const Point4& hit, Object* obj, const Scene& scene, int dep
     auto spec_green = compute_specular_light(info, (color->colors[GREEN] / 255.), li, products);
     auto spec_blue = compute_specular_light(info, (color->colors[BLUE] / 255.), li, products);
 
-    auto red = std::min(float(1.0), diff_red + spec_red);
-    auto green = std::min(float(1.0), diff_green + spec_green);
-    auto blue = std::min(float(1.0), diff_blue + spec_blue);
+    auto red = std::min(1.0f, diff_red + spec_red + li_red * nl);
+    auto green = std::min(1.0f, diff_green + spec_green + li_green * nl);
+    auto blue = std::min(1.0f, diff_blue + spec_blue + li_blue * nl);
 
-    return new Pixel(255 * red, 255 * green, 255 * blue);
+    return Color(255 * red, 255 * green, 255 * blue);
 }
 
 std::pair<std::optional<Point4>, Object*> find_closest_intersection(const Point4& ray_origin, const Vector4& ray_dir, const std::vector<Object*>& objects)
@@ -465,13 +466,13 @@ PPM computeScene(Scene& scene, const int& image_h, const int& image_w)
 
                 // Compute its color and add it to the pixel color
                 auto p = compute_color(*intersection, obj, scene, 0);
-                red += p->colors[RED];
-                green += p->colors[GREEN];
-                blue += p->colors[BLUE];
+                red += p.colors[RED];
+                green += p.colors[GREEN];
+                blue += p.colors[BLUE];
             }
 
             // Average values of each ray
-            img.pixels[i * image_w + j] = new Pixel(red / NB_RAYS, green / NB_RAYS, blue / NB_RAYS);
+            img.pixels[i * image_w + j] = new Color(red / NB_RAYS, green / NB_RAYS, blue / NB_RAYS);
             printProgressBar(i * image_w + j, image_w * image_h);
         }
     }
@@ -489,14 +490,14 @@ int main(int argc, char **argv)
     }
 
     time_t load_start = std::time(nullptr);
-    TextureInfo flat_random{kd: 0.8, ks: 0.2, ns: 0.8, color: new Pixel(68, 164, 112)};
-    TextureInfo mat_red{kd: 0.5, ks: 0.2, ns: 0.9, color: new Pixel(255, 0, 0)};
+    TextureInfo flat_random{kd: 0.8, ks: 0.2, ns: 0.8, color: new Color(68, 164, 112)};
+    TextureInfo mat_red{kd: 0.5, ks: 0.2, ns: 0.9, color: new Color(255, 0, 0)};
 
-    auto uniform_flat_red = UniformTexture(Pixel(255, 0, 0));
-    auto uniform_flat_blue = UniformTexture(Pixel(0, 0, 255));
-    auto uniform_flat_cyan = UniformTexture(Pixel(0, 255, 254));
-    auto uniform_flat_random = UniformTexture(flat_random);
-    auto uniform_mat_red = UniformTexture(mat_red);
+    auto uniform_flat_red = std::make_shared<UniformTexture>(Color(255, 0, 0));
+    auto uniform_flat_blue = std::make_shared<UniformTexture>(Color(0, 0, 255));
+    auto uniform_flat_cyan = std::make_shared<UniformTexture>(Color(0, 255, 254));
+    auto uniform_flat_random = std::make_shared<UniformTexture>(flat_random);
+    auto uniform_mat_red = std::make_shared<UniformTexture>(mat_red);
      
     Sphere ball1(uniform_flat_red, Point4(0, 0, 25), 10);
     Sphere ball2(uniform_flat_cyan, Point4(7, -4, 15), 3);
@@ -532,7 +533,7 @@ int main(int argc, char **argv)
     Triangle triangle46 = Triangle(Point4(-3, 7, 15), Point4(15, 7, 15), Point4(15, 7, 10), uniform_flat_blue);
     // Complex *obj = new Complex(vec);
 
-    PointLight top_light(Point4(0, 0, 5), 0.8);
+    PointLight top_light(Point4(0, 0, 5), 0.8, Color(255, 255, 255));
     PointLight bot_light(Point4(3, 0, 2), 0.6);
     CircleLight circle_light(Point4(18, -5, 8), 0.6, 3, Point4(-7, 8, 6));
 
