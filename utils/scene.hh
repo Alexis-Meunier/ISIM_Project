@@ -10,17 +10,15 @@ class Scene
 {
 public:
     Scene() = default;
-    Scene(const std::vector<Object*>& objs, const std::vector<Light*>& lights, const Camera& cam);
+    Scene(const std::vector<Object*>& objs, const Camera& cam);
     ~Scene();
 
     void addObject(Object& obj);
-    void addLight(Light& light);
     void setCamera(const Camera& cam);
 
     void build_bvh();
 
     std::vector<Object*> objects;
-    std::vector<Light*> lights;
     Camera camera;
 
     // The bounding boxes in the scene

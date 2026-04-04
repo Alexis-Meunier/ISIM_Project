@@ -1,11 +1,11 @@
-#include "UniformTexture.hh"
+#include "LightTexture.hh"
 
-TextureInfo *UniformTexture::get_elements(Point4 position)
+TextureInfo *LightTexture::get_elements(Point4 position)
 {
     return info;
 }
 
-UniformTexture::UniformTexture()
+LightTexture::LightTexture()
 {
     TextureInfo *textInfo = new TextureInfo();
     textInfo->kd = 1;
@@ -17,7 +17,7 @@ UniformTexture::UniformTexture()
     textInfo->lightPower = 0;
 }
 
-UniformTexture::UniformTexture(const Color& color)
+LightTexture::LightTexture(const Color& color)
 {
     TextureInfo *textInfo = new TextureInfo();
     textInfo->kd = 1;
@@ -29,12 +29,12 @@ UniformTexture::UniformTexture(const Color& color)
     textInfo->lightPower = 0;
 }
 
-UniformTexture::UniformTexture(TextureInfo *info)
+LightTexture::LightTexture(TextureInfo *info)
 {
     this->info = info;
 }
 
-UniformTexture::UniformTexture(const UniformTexture& info)
+LightTexture::LightTexture(const LightTexture& info)
 {
     this->info = info.info;
 }

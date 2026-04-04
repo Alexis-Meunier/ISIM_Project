@@ -106,7 +106,7 @@ Vector4 Sphere::get_normal(const Point4& intersection)
     return Vector4(intersection.x - center.x, intersection.y - center.y, intersection.z - center.z);
 }
 
-TextureInfo Sphere::get_texture(const Point4& v)
+TextureInfo *Sphere::get_texture(const Point4& v)
 {
     return texture->get_elements(v);
 }

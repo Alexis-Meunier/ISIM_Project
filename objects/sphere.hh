@@ -13,7 +13,7 @@ public:
 
     std::optional<Point4> intersect(const Point4& start, const Vector4& norm) override;
     Vector4 get_normal(const Point4& v) override;
-    TextureInfo get_texture(const Point4& v) override;
+    TextureInfo *get_texture(const Point4& v) override;
     AABB get_bounds() const;
 
     Point4 center;

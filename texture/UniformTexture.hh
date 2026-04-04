@@ -6,9 +6,9 @@ class UniformTexture : public TextureMaterial
 {
 public:
     UniformTexture();
-    UniformTexture(const TextureInfo& info);
+    UniformTexture(TextureInfo *info);
     UniformTexture(const UniformTexture& info);
     UniformTexture(const Color& info);
 
-    TextureInfo get_elements(Point4 position) override;
+    TextureInfo *get_elements(Point4 position) override;
 };

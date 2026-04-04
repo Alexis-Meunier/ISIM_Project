@@ -93,7 +93,7 @@ Vector4 Triangle::get_normal(const Point4& p)
     return this->normal;
 }
 
-TextureInfo Triangle::get_texture(const Point4& p)
+TextureInfo *Triangle::get_texture(const Point4& p)
 {
     return texture->get_elements(p);
 }
