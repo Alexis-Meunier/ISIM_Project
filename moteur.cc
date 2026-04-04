@@ -232,8 +232,8 @@ Color cast_ray(const Point4& hit, Object* obj, Scene& scene, int depth)
 
         auto a = text->get_elements(hit);
         float r = (a->color->colors[RED]) / 255.f;
-        float g = a->color->colors[RED] / 255.f;
-        float b = a->color->colors[RED] / 255.f;
+        float g = a->color->colors[GREEN] / 255.f;
+        float b = a->color->colors[BLUE] / 255.f;
 
         // Tint: how much each channel is boosted relative to a white light
         variables.li += a->lightPower;
