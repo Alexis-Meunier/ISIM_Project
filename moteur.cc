@@ -238,8 +238,8 @@ Color cast_ray(const Point4& hit, Object* obj, Scene& scene, int depth)
         // Tint: how much each channel is boosted relative to a white light
         variables.li += a->lightPower;
         variables.li_red += a->lightPower * r;
-        variables.li_blue += a->lightPower * g;
-        variables.li_green += a->lightPower * b;
+        variables.li_blue += a->lightPower * b;
+        variables.li_green += a->lightPower * g;
 
         auto ls = static_cast<Sphere*>(light);
         Point4 sample = ls->center;
@@ -251,14 +251,14 @@ Color cast_ray(const Point4& hit, Object* obj, Scene& scene, int depth)
         // Check if ray is intercepted by another object
         bool in_shadow = false;
         // Offset hit point along normal to avoid self-intersection
-        // Point4 offset_hit = Point4(
-        //     hit.x + normal_vect.x * 0.001f,
-        //     hit.y + normal_vect.y * 0.001f,
-        //     hit.z + normal_vect.z * 0.001f
-        // );
+        Point4 offset_hit = Point4(
+            hit.x + normal_vect.x * 0.001f,
+            hit.y + normal_vect.y * 0.001f,
+            hit.z + normal_vect.z * 0.001f
+        );
 
         // Then use offset_hit for all secondary rays
-        auto [shadow_hit, shadow_obj] = bvh_intersect(scene.bvh_pool, scene.objects, hit, Li);
+        auto [shadow_hit, shadow_obj] = bvh_intersect(scene.bvh_pool, scene.objects, offset_hit, Li);
         if (shadow_hit && shadow_obj != obj)
         {
             auto shadow_text = dynamic_cast<LightTexture*>(shadow_obj->texture.get());
@@ -414,7 +414,7 @@ int main(int argc, char** argv)
     light.kd = 0.5f;
     light.ks = 0.2f;
     light.ns = 0.9f;
-    light.color = new Color(0,255,255);
+    light.color = new Color(0,0,0);
     light.lightPower = 0.8f;
 
     auto uniform_flat_red = std::make_shared<UniformTexture>(Color(255, 0, 0));
@@ -493,36 +493,36 @@ int main(int argc, char** argv)
 
     Scene scene;
     scene.addObject(ball1);
-    // scene.addObject(ball2);
-    // scene.addObject(ball3);
-    // scene.addObject(ball4);
-    // scene.addObject(light_ball);
-    // scene.addObject(triangle11);
-    // scene.addObject(triangle12);
-    // scene.addObject(triangle13);
-    // scene.addObject(triangle14);
-    // scene.addObject(triangle15);
-    // scene.addObject(triangle16);
-
-    // scene.addObject(triangle21);
-    // scene.addObject(triangle22);
-    // scene.addObject(triangle23);
-    // scene.addObject(triangle24);
-    // scene.addObject(triangle25);
-    // scene.addObject(triangle26);
-
-    // scene.addObject(triangle31);
-    // scene.addObject(triangle32);
-    // scene.addObject(triangle33);
-    // scene.addObject(triangle34);
-    // scene.addObject(triangle35);
-    // scene.addObject(triangle36);
-
-    // scene.addObject(triangle41);
-    // scene.addObject(triangle42);
-    // scene.addObject(triangle45);
-    // scene.addObject(triangle46);
+    scene.addObject(ball2);
+    scene.addObject(ball3);
+    scene.addObject(ball4);
     scene.addObject(light_ball);
+    scene.addObject(triangle11);
+    scene.addObject(triangle12);
+    scene.addObject(triangle13);
+    scene.addObject(triangle14);
+    scene.addObject(triangle15);
+    scene.addObject(triangle16);
+
+    scene.addObject(triangle21);
+    scene.addObject(triangle22);
+    scene.addObject(triangle23);
+    scene.addObject(triangle24);
+    scene.addObject(triangle25);
+    scene.addObject(triangle26);
+
+    scene.addObject(triangle31);
+    scene.addObject(triangle32);
+    scene.addObject(triangle33);
+    scene.addObject(triangle34);
+    scene.addObject(triangle35);
+    scene.addObject(triangle36);
+
+    scene.addObject(triangle41);
+    scene.addObject(triangle42);
+    scene.addObject(triangle45);
+    scene.addObject(triangle46);
+    // scene.addObject(light_ball);
     // scene.addLight(circle_light);
     scene.setCamera(camera);
     time_t load_end = std::time(nullptr);
