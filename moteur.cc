@@ -266,7 +266,7 @@ int main(int argc, char** argv)
 
     time_t load_start = std::time(nullptr);
     TextureInfo
-    flat_random{ kd: 0.2, ks: 0.8, ns: 0.9, color: new Color(68, 164, 112) };
+    flat_random{ kd: 0.4, ks: 0.2, ns: 0.5, color: new Color(68, 164, 112) };
     TextureInfo
     a{ kd: 0.1f, ks: 0.9f, ns: 0.9, color: new Color(255, 255, 0) };
     TextureInfo
