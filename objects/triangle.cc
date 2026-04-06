@@ -108,3 +108,20 @@ AABB Triangle::get_bounds() const {
                std::max({p1.z, p2.z, p3.z}))
     };
 }
+
+// Return random centroid in triangle
+Point4 Triangle::get_centroid() const
+{
+    float u = static_cast<float>(rand()) / RAND_MAX;
+    float v = static_cast<float>(rand()) / RAND_MAX;
+    if (u + v > 1.f)
+    {
+        u = 1.f - u; v = 1.f - v;
+    }
+
+    return Point4(
+        (1-u-v)*p1.x + u*p2.x + v*p3.x,
+        (1-u-v)*p1.y + u*p2.y + v*p3.y,
+        (1-u-v)*p1.z + u*p2.z + v*p3.z
+    );
+}

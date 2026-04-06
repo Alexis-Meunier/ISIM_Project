@@ -1,331 +1,183 @@
 #include "moteur.hh"
 
-#include <cmath>
-#include <cstdint>
+Color cast_ray(const Point4& hit, Object* obj, Scene& scene, int depth);
 
-#include "texture/UniformTexture.hh"
-#include "texture/LightTexture.hh"
-#include "utils/vector4.hh"
-
-void printProgressBar(int progress, int total, int barWidth = 50)
-{
-    static int lastPercent = -1;
-    int percent = (int)((float)progress / total * 100);
-    if (percent == lastPercent)
-        return;
-    lastPercent = percent;
-
-    int filled = percent * barWidth / 100;
-
-    std::string bar(filled, '#');
-    bar = "\033[32m" + bar;
-    bar += "\033[31m";
-    bar += std::string(barWidth - filled, '-');
-    bar += "\033[0m";
-
-    printf("\r[%s] %d%%", bar.c_str(), percent);
-    fflush(stdout);
-}
-
-/**
- * Computes the diffuse light received using the parameters:
- *
- * light = kd * color * intensity * (N.Li)
- *
- * with:
- *      - kd = the amount of light kept in [0, 1]
- *      - color = the amount of color in the interval [0, 1]
- *      - intensity = the power of the light in [0, 1]
- *      - N = the normal to the point hit by the ray
- *      - Li = the ray sent towards the light
- */
-float compute_diffuse_light(LightComputation& variables, const int& canal)
-{
-    // std::cout << "3rd: " << variables.nl << std::endl;
-    variables.li = variables.li > 1 ? 1 : variables.li;
-    variables.nl = variables.nl > 1 ? 1 : variables.nl;
-
-    auto color = *(variables.color);
-    auto val =
-        variables.kd * (color[canal] / 255.) * variables.li * variables.nl;
-    // std::cout << "kd: " << variables.kd << std::endl;
-    // std::cout << "li: " << variables.li << std::endl;
-    // std::cout << "color: " << int(color.colors[canal]) << std::endl;
-    // std::cout << "val: " << val << std::endl;
-    return val > 1 ? 1 : val;
-}
-
-/**
- * Computes the specular light received using the parameters:
- *
- * light = ks * color * intensity * (N.Li)^ns
- *
- * with:
- *      - kd = the amount of light kept in [0, 1]
- *      - color = the amount of color in the interval [0, 1]
- *      - intensity = the power of the light in [0, 1]
- *      - N = the normal to the point hit by the ray
- *      - Li = the ray sent towards the light
- */
-float compute_specular_light(LightComputation& variables, const int& canal)
-{
-    variables.li = variables.li > 1 ? 1 : variables.li;
-    variables.products = variables.products > 1 ? 1 : variables.products;
-
-    auto color = *(variables.color);
-    // std::cout << int(color.colors[canal]) << std::endl;
-    auto val = variables.ks * (color[canal] / 255.) * variables.li
-        * std::pow(variables.products, variables.ns);
-    return val > 1 ? 1 : val;
-}
-
-Color compute_color(LightComputation& variables)
-{
-    // auto brdfLambertian = (variables.kd / std::PI) * dot(brdf.N,brdf.L)
-
-    // Compute diffuse color
-    auto diff_red = compute_diffuse_light(variables, RED);
-    auto diff_green = compute_diffuse_light(variables, GREEN);
-    auto diff_blue = compute_diffuse_light(variables, BLUE);
-
-    // Compute specular color
-    auto spec_red = compute_specular_light(variables, RED);
-    auto spec_green = compute_specular_light(variables, GREEN);
-    auto spec_blue = compute_specular_light(variables, BLUE);
-
-    // Compute contribution color
-    auto contr_red = variables.li_red * variables.nl;
-    auto contr_green = variables.li_green * variables.nl;
-    auto contr_blue = variables.li_blue * variables.nl;
-
-    // Sum all 3
-    auto red = std::min(1.0f, diff_red + spec_red + contr_red);
-    auto green = std::min(1.0f, diff_green + spec_green + contr_green);
-    auto blue = std::min(1.0f, diff_blue + spec_blue + contr_blue);
-
-    return Color(255 * red, 255 * green, 255 * blue);
-}
-
-std::pair<optional<Point4>, Object*>
-bvh_intersect(const vector<BVHNode>& pool, const vector<Object*>& objs,
-              const Point4& origin, const Vector4& dir, int node_idx = 0)
-{
-    const BVHNode& node = pool[node_idx];
-
-    if (!node.bounds.intersect(origin, dir))
-        return { std::nullopt, nullptr };
-
-    if (node.is_leaf())
-    {
-        // Linear search within the leaf (at most 4 objects for now)
-        float best_dist = std::numeric_limits<float>::max();
-        optional<Point4> best_hit = std::nullopt;
-        Object* best_obj = nullptr;
-
-        for (int i = node.obj_start; i < node.obj_start + node.obj_count; i++)
-        {
-            auto hit = objs[i]->intersect(origin, dir);
-            if (!hit)
-                continue;
-
-            float d = distance(origin, *hit);
-            if (d < best_dist)
-            {
-                best_dist = d;
-                best_hit = hit;
-                best_obj = objs[i];
-            }
-        }
-
-        return { best_hit, best_obj };
-    }
-
-    // Recurse into both children, keep the closer hit
-    auto [lhit, lobj] = bvh_intersect(pool, objs, origin, dir, node.left);
-    auto [rhit, robj] = bvh_intersect(pool, objs, origin, dir, node.right);
-
-    if (!lhit && !rhit)
-        return { std::nullopt, nullptr };
-    if (!lhit)
-        return { rhit, robj };
-    if (!rhit)
-        return { lhit, lobj };
-
-    return distance(origin, *lhit) < distance(origin, *rhit)
-        ? std::make_pair(lhit, lobj)
-        : std::make_pair(rhit, robj);
-}
-
-// Return offset angle [0, 360]
+// Angle returned in radians [0, Pi/2]
 float get_angle_margin(const TextureInfo& text)
 {
-    return 360.f - (text.ks * 360.f);
+    return (1.f - text.ks) * (M_PI / 2.f);
 }
 
-Vector4
-get_outgoing_ray(float angle_margin,
-                 Vector4& normal,
-                 Vector4& reflected)
+Vector4 get_outgoing_ray(float angle_margin, Vector4& normal, Vector4& reflected)
 {
-    float rand_angle = static_cast<float>(rand()) / RAND_MAX
-        * angle_margin; // angle representing the distance between the two
-                        // vectors
-    float rand_dir = static_cast<float>(rand()) / RAND_MAX
-        * 360; // angle representing in which direction the outgoing vector goes
-               // compared to the reflected one
+    float rand_angle = (static_cast<float>(rand()) / RAND_MAX) * angle_margin;
+    float rand_dir   = (static_cast<float>(rand()) / RAND_MAX) * 2.f * M_PI;
+
     auto diff_from_reflected = Vector4{ 0, 1, 0 };
     if (dot_product(normal, reflected) == 1)
+    {
         diff_from_reflected = Vector4{ 1, 0, 0 };
+    }
+
     auto u = cross_product(reflected, diff_from_reflected);
-    // u.normalize(); pas besoin normalement
     auto v = cross_product(reflected, u);
 
     auto new_vec = reflected * std::cos(rand_angle)
         + u * (std::sin(rand_angle) * std::cos(rand_dir))
         + v * (std::sin(rand_angle) * std::sin(rand_dir));
+
     if (dot_product(normal, new_vec) < 0)
+    {
         return get_outgoing_ray(angle_margin, normal, reflected);
+    }
 
     return new_vec;
 }
 
-Color cast_ray(const Point4& hit, Object* obj, Scene& scene, int depth)
+Color compute_direct_rays(Scene& scene, const Point4& hit, Vector4& normal, Point4& offset_hit, TextureInfo *info)
 {
-    if (depth == 5)
-        return Color();
+    float direct_r = 0, direct_g = 0, direct_b = 0;
+    float ar = info->color->colors[RED] / 255.f;
+    float ag = info->color->colors[GREEN] / 255.f;
+    float ab = info->color->colors[BLUE] / 255.f;
 
-    // Instantiate all variables we need to compute the color of the pixels
-    TextureInfo *info = obj->get_texture(hit);
-    LightComputation variables;
-    variables.color = info->color;
-    variables.kd = info->kd;
-    variables.ks = info->ks;
-    variables.ns = info->ns;
+    // Use NEE to always have at least one light (if possible)
+    for (Object* light_obj : scene.lights)
+    {
+        // Lights array only has lightTexture
+        auto ltex = dynamic_cast<LightTexture*>(light_obj->texture.get());
+        auto li = ltex->get_elements(hit);
 
-    // Compute normal vector
-    auto normal_vect = obj->get_normal(hit);
-    normal_vect.normalize();
+        // Get the center of the light
+        auto centroid = light_obj->get_centroid();
+        Vector4 to_light(centroid.x - hit.x,
+                         centroid.y - hit.y,
+                         centroid.z - hit.z);
+        float dist_to_light = std::sqrt(dot_product(to_light, to_light));
+        to_light.normalize();
 
-    // Compute view vector
+        // Compute angle
+        float cos_theta = dot_product(normal, to_light);
+        if (cos_theta <= 0) continue;
+        
+        // Shadow check
+        auto [sh, so] = bvh_intersect(scene.bvh_pool, scene.objects, offset_hit, to_light);
+        if (sh && so != light_obj) {
+            float to_blocker = distance(offset_hit, *sh);
+            if (to_blocker < dist_to_light - 0.01f) continue; // in shadow
+        }
+
+        // Color of light * color of object * power of light * diffuse variable * angle of rays
+        float power = li->lightPower * cos_theta * info->kd;
+        direct_r += (li->color->colors[RED] / 255.f) * power * ar;
+        direct_g += (li->color->colors[GREEN] / 255.f) * power * ag;
+        direct_b += (li->color->colors[BLUE] / 255.f) * power * ab;
+    }
+
+    return Color(direct_r * 255, direct_g * 255, direct_b * 255);
+}
+
+Color compute_indirect_rays(Scene& scene, Object *obj, Vector4& normal, const Point4& hit, Point4& offset_hit, TextureInfo *info, int depth)
+{
+    // Ready needed variables such as angle with BRDF
+    float ar = info->color->colors[RED] / 255.f;
+    float ag = info->color->colors[GREEN] / 255.f;
+    float ab = info->color->colors[BLUE] / 255.f;
+
     auto V = Vector4(scene.camera.center - hit);
     V.normalize();
 
-    // Compute reflected ray
-    auto R = normal_vect * 2.0 * dot_product(normal_vect, V) - V;
+    auto R = normal * 2.0f * dot_product(normal, V) - V;
     R.normalize();
 
-    float margin_angle = get_angle_margin(*obj->get_texture(hit));
-    auto reflected_rays = std::vector<Vector4>();
-    for (uint8_t i = 0; i < NB_RAYS_REFLECTED; ++i)
-        reflected_rays.push_back(
-            get_outgoing_ray(margin_angle, normal_vect, R));
+    float indirect_r = 0, indirect_g = 0, indirect_b = 0;
+    float margin_angle = get_angle_margin(*info);
+    int nb_valid = 0;
 
-    // Compute light contribution for each light source
-    for (Object* light : scene.objects)
+    // Send rays to get indirect lighting
+    for (int i = 0; i < NB_RAYS_REFLECTED; i++)
     {
-        // Temporary cast to verify if it is a light
-        auto text = dynamic_cast<LightTexture*>(light->texture.get());
-        if (text == nullptr)
-        {
-            continue;
-        }
+        Vector4 outgoing = get_outgoing_ray(margin_angle, normal, R);
 
-        auto a = text->get_elements(hit);
-        float r = (a->color->colors[RED]) / 255.f;
-        float g = a->color->colors[GREEN] / 255.f;
-        float b = a->color->colors[BLUE] / 255.f;
+        auto [next_hit, next_obj] = bvh_intersect(scene.bvh_pool, scene.objects, offset_hit, outgoing);
+        // Hit nothing
+        if (!next_hit || next_obj == obj) continue;
 
-        // Tint: how much each channel is boosted relative to a white light
-        variables.li += a->lightPower;
-        variables.li_red += a->lightPower * r;
-        variables.li_blue += a->lightPower * b;
-        variables.li_green += a->lightPower * g;
+        float w = info->kd * std::max(0.f, dot_product(normal, outgoing));
 
-        auto ls = static_cast<Sphere*>(light);
-        Point4 sample = ls->center;
+        // Send ray towards the object
+        Color incoming = cast_ray(*next_hit, next_obj, scene, depth + 1);
+        indirect_r += (incoming.colors[RED] / 255.f) * w * ar;
+        indirect_g += (incoming.colors[GREEN] / 255.f) * w * ag;
+        indirect_b += (incoming.colors[BLUE] / 255.f) * w * ab;
+        nb_valid++;
+    }
 
-        // Compute light vector
-        auto Li = Vector4(sample - hit);
-        Li.normalize();
+    if (nb_valid > 0) {
+        indirect_r /= nb_valid;
+        indirect_g /= nb_valid;
+        indirect_b /= nb_valid;
+    }
 
-        // Check if ray is intercepted by another object
-        bool in_shadow = false;
-        // Offset hit point along normal to avoid self-intersection
-        Point4 offset_hit = Point4(
-            hit.x + normal_vect.x * 0.001f,
-            hit.y + normal_vect.y * 0.001f,
-            hit.z + normal_vect.z * 0.001f
+    return Color(indirect_r * 255, indirect_g * 255, indirect_b * 255);
+}
+
+Color compute_light_rays(LightTexture *light_tex, const Point4& hit, int depth)
+{
+    // Only consider the first depth, further depths will be handled later
+    if (depth == 0)
+    {
+        auto li = light_tex->get_elements(hit);
+        return Color(
+            li->color->colors[RED] * li->lightPower,
+            li->color->colors[GREEN] * li->lightPower,
+            li->color->colors[BLUE] * li->lightPower
         );
-
-        // Then use offset_hit for all secondary rays
-        auto [shadow_hit, shadow_obj] = bvh_intersect(scene.bvh_pool, scene.objects, offset_hit, Li);
-        if (shadow_hit && shadow_obj != obj)
-        {
-            auto shadow_text = dynamic_cast<LightTexture*>(shadow_obj->texture.get());
-            if (shadow_text == nullptr)
-            {
-                auto to_light = distance(hit, sample);
-                auto to_blocker = distance(hit, *shadow_hit);
-                if (to_blocker > 0.01f && to_blocker < to_light)
-                    in_shadow = true;
-            }
-        }
-
-        // If was intercepted add values
-        if (!in_shadow)
-        {
-            variables.nl += dot_product(Li, normal_vect);
-
-            auto S = normal_vect * 2.0 * dot_product(normal_vect, Li) - Li;
-            S.normalize();
-
-            variables.products += dot_product(S, V);
-        }
     }
 
-    // Recursively call the function for other objects contribution
-    auto [refl_hit, refl_obj] =
-        bvh_intersect(scene.bvh_pool, scene.objects, hit, R);
-    if (refl_hit && refl_obj != obj)
+    return Color(0, 0, 0);
+}
+
+Color cast_ray(const Point4& hit, Object* obj, Scene& scene, int depth)
+{
+    if (depth == MAX_DEPTH)
+        return Color(0, 0, 0);
+
+    auto light_tex = dynamic_cast<LightTexture*>(obj->texture.get());
+    // The object that was hit is a light
+    if (light_tex != nullptr)
     {
-        auto new_color = cast_ray(*refl_hit, refl_obj, scene, depth + 1);
-        variables.contribution_red += info->ks * new_color.colors[RED] / 255.;
-        variables.contribution_green +=
-            info->ks * new_color.colors[GREEN] / 255.;
-        variables.contribution_blue += info->ks * new_color.colors[BLUE] / 255.;
+        return compute_light_rays(light_tex, hit, depth);
     }
 
-    return compute_color(variables);
-}
+    TextureInfo* info = obj->get_texture(hit);
+    auto normal = obj->get_normal(hit);
+    normal.normalize();
 
-std::pair<Vector4, Vector4> get_basis(const Camera& cam)
-{
-    auto straight = cam.looking_at;
-    auto up = cam.up;
+    // Offset in case of self-intersection
+    Point4 offset_hit(
+        hit.x + normal.x * 0.001f,
+        hit.y + normal.y * 0.001f,
+        hit.z + normal.z * 0.001f
+    );
 
-    if (straight * up > 0.999)
-        up = Vector4(0, 0, 1);
+    // Compute direct light rays (NEE)
+    auto direct_c = compute_direct_rays(scene, hit, normal, offset_hit, info);
+    float direct_r = direct_c.colors[RED] / 255.f;
+    float direct_g = direct_c.colors[GREEN] / 255.f;
+    float direct_b = direct_c.colors[BLUE] / 255.f;
 
-    // S = U.V
-    auto horizontal = cross_product(straight, up);
-    horizontal.normalize();
+    // Compute indirect colors (recursion)
+    auto indirect_c = compute_indirect_rays(scene, obj, normal, hit, offset_hit, info, depth);
+    float indirect_r = indirect_c.colors[RED] / 255.f;
+    float indirect_g = indirect_c.colors[GREEN] / 255.f;
+    float indirect_b = indirect_c.colors[BLUE] / 255.f;
 
-    // U' = S.U
-    auto real_up = cross_product(horizontal, straight);
-    real_up.normalize();
-
-    return { horizontal, real_up };
-}
-
-std::pair<float, float> get_camera_plane(const Camera& cam)
-{
-    float dist_to_zmin = distance(cam.zmin, cam.center);
-
-    // Physics: I drew it on a board to be sure
-    float W = std::tan(cam.open_angle_x) * dist_to_zmin;
-    float H = std::tan(cam.open_angle_y) * dist_to_zmin;
-
-    return { W, H };
+    return Color(
+        std::min(255.f, (direct_r + indirect_r) * 255.f),
+        std::min(255.f, (direct_g + indirect_g) * 255.f),
+        std::min(255.f, (direct_b + indirect_b) * 255.f)
+    );
 }
 
 PPM computeScene(Scene& scene, const int& image_h, const int& image_w)
@@ -407,14 +259,18 @@ int main(int argc, char** argv)
 
     time_t load_start = std::time(nullptr);
     TextureInfo
-    flat_random{ kd: 0.8, ks: 0.2, ns: 0.8, color: new Color(68, 164, 112) };
+    flat_random{ kd: 0.2, ks: 0.9, ns: 0.9, color: new Color(68, 164, 112) };
     TextureInfo
-    mat_red{ kd: 0.5, ks: 0.2, ns: 0.9, color: new Color(255, 0, 0) };
+    a{ kd: 1.f, ks: 1.f, ns: 0.9, color: new Color(255, 255, 0) };
+    TextureInfo
+    mat_red{ kd: 0.9, ks: 0.2, ns: 0.3, color: new Color(255, 0, 0) };
+    TextureInfo
+    something_text{ kd: 0.3, ks: 0.3, ns: 0.8, color: new Color(0, 255, 255) };
     LightInfo light;
     light.kd = 0.5f;
     light.ks = 0.2f;
     light.ns = 0.9f;
-    light.color = new Color(0,0,0);
+    light.color = new Color(255,255,255);
     light.lightPower = 0.8f;
 
     auto uniform_flat_red = std::make_shared<UniformTexture>(Color(255, 0, 0));
@@ -422,71 +278,73 @@ int main(int argc, char** argv)
     auto uniform_flat_cyan =
         std::make_shared<UniformTexture>(Color(0, 255, 254));
     auto uniform_flat_random = std::make_shared<UniformTexture>(&flat_random);
+    auto uniform_a = std::make_shared<UniformTexture>(&a);
     auto uniform_mat_red = std::make_shared<UniformTexture>(&mat_red);
+    auto uniform_something = std::make_shared<UniformTexture>(&something_text);
     auto light_texture = std::make_shared<LightTexture>(&light);
 
-    Sphere ball1(uniform_flat_red, Point4(0, 0, 25), 10);
-    Sphere ball2(uniform_flat_cyan, Point4(7, -4, 15), 3);
-    Sphere ball3(uniform_flat_random, Point4(7, 10, 6), 10);
-    Sphere ball4(uniform_mat_red, Point4(-7, 8, 6), 1);
-    Sphere light_ball(light_texture, Point4(10, 10, 20), 4);
+    Sphere ball1(uniform_mat_red, Point4(5, -5, 15), 4);
+    Sphere ball2(uniform_something, Point4(-5, -5, 15), 4);
+    Sphere ball3(uniform_flat_random, Point4(0, 0, 20), 4);
+    Sphere ball4(uniform_a, Point4(0, 10, 25), 3);
+    Sphere light_ball(light_texture, Point4(0, 20, 10), 4);
 
     // Triangle triangle1 = Triangle(Point4(1, 0, 8), Point4(0, 1 *
     // std::sqrt(3), 8), Point4(-1, 0, 8), uniform_flat_random); Triangle
     // triangle2 = Triangle(Point4(14, 5, 6), Point4(6, 7, 8), Point4(20, -1,
     // 4), uniform_mat_red);
-    Triangle triangle11 = Triangle(Point4(-10, -15, 10), Point4(-5, -15, 10),
-                                   Point4(-10, -5, 10), uniform_mat_red);
-    Triangle triangle12 = Triangle(Point4(-5, -15, 10), Point4(-5, -5, 10),
-                                   Point4(-10, -5, 10), uniform_mat_red);
-    Triangle triangle13 = Triangle(Point4(-5, -15, 10), Point4(-5, -15, 15),
-                                   Point4(-5, -5, 10), uniform_flat_random);
-    Triangle triangle14 = Triangle(Point4(-5, -15, 15), Point4(-5, -5, 15),
-                                   Point4(-5, -5, 10), uniform_flat_random);
-    Triangle triangle15 = Triangle(Point4(-10, -5, 10), Point4(-5, -5, 10),
-                                   Point4(-10, -5, 15), uniform_flat_blue);
-    Triangle triangle16 = Triangle(Point4(-5, -5, 10), Point4(-5, -5, 15),
-                                   Point4(-10, -5, 15), uniform_flat_blue);
+    // Triangle triangle11 = Triangle(Point4(-10, -15, 10), Point4(-5, -15, 10),
+    //                                Point4(-10, -5, 10), uniform_mat_red);
+    // Triangle triangle12 = Triangle(Point4(-5, -15, 10), Point4(-5, -5, 10),
+    //                                Point4(-10, -5, 10), uniform_mat_red);
+    // Triangle triangle13 = Triangle(Point4(-5, -15, 10), Point4(-5, -15, 15),
+    //                                Point4(-5, -5, 10), uniform_flat_random);
+    // Triangle triangle14 = Triangle(Point4(-5, -15, 15), Point4(-5, -5, 15),
+    //                                Point4(-5, -5, 10), uniform_flat_random);
+    // Triangle triangle15 = Triangle(Point4(-10, -5, 10), Point4(-5, -5, 10),
+    //                                Point4(-10, -5, 15), uniform_flat_blue);
+    // Triangle triangle16 = Triangle(Point4(-5, -5, 10), Point4(-5, -5, 15),
+    //                                Point4(-10, -5, 15), uniform_flat_blue);
 
-    Triangle triangle21 = Triangle(Point4(-10, 5, 10), Point4(-5, 5, 10),
-                                   Point4(-10, 15, 10), uniform_mat_red);
-    Triangle triangle22 = Triangle(Point4(-5, 5, 10), Point4(-5, 15, 10),
-                                   Point4(-10, 15, 10), uniform_mat_red);
-    Triangle triangle23 = Triangle(Point4(-5, 5, 10), Point4(-5, 5, 15),
-                                   Point4(-5, 15, 10), uniform_flat_random);
-    Triangle triangle24 = Triangle(Point4(-5, 5, 15), Point4(-5, 15, 15),
-                                   Point4(-5, 15, 10), uniform_flat_random);
-    Triangle triangle25 = Triangle(Point4(-10, 5, 10), Point4(-10, 5, 15),
-                                   Point4(-5, 5, 10), uniform_flat_blue);
-    Triangle triangle26 = Triangle(Point4(-10, 5, 15), Point4(-5, 5, 15),
-                                   Point4(-5, 5, 10), uniform_flat_blue);
+    // Triangle triangle21 = Triangle(Point4(-10, 5, 10), Point4(-5, 5, 10),
+    //                                Point4(-10, 15, 10), uniform_mat_red);
+    // Triangle triangle22 = Triangle(Point4(-5, 5, 10), Point4(-5, 15, 10),
+    //                                Point4(-10, 15, 10), uniform_mat_red);
+    // Triangle triangle23 = Triangle(Point4(-5, 5, 10), Point4(-5, 5, 15),
+    //                                Point4(-5, 15, 10), uniform_flat_random);
+    // Triangle triangle24 = Triangle(Point4(-5, 5, 15), Point4(-5, 15, 15),
+    //                                Point4(-5, 15, 10), uniform_flat_random);
+    // Triangle triangle25 = Triangle(Point4(-10, 5, 10), Point4(-10, 5, 15),
+    //                                Point4(-5, 5, 10), uniform_flat_blue);
+    // Triangle triangle26 = Triangle(Point4(-10, 5, 15), Point4(-5, 5, 15),
+    //                                Point4(-5, 5, 10), uniform_flat_blue);
 
-    Triangle triangle31 = Triangle(Point4(5, -15, 10), Point4(10, -15, 10),
-                                   Point4(5, -5, 10), uniform_mat_red);
-    Triangle triangle32 = Triangle(Point4(10, -15, 10), Point4(10, -5, 10),
-                                   Point4(5, -5, 10), uniform_mat_red);
-    Triangle triangle33 = Triangle(Point4(5, -15, 10), Point4(5, -5, 10),
-                                   Point4(5, -15, 15), uniform_flat_random);
-    Triangle triangle34 = Triangle(Point4(5, -15, 15), Point4(5, -5, 10),
-                                   Point4(5, -5, 15), uniform_flat_random);
-    Triangle triangle35 = Triangle(Point4(5, -5, 10), Point4(10, -5, 10),
-                                   Point4(5, -5, 15), uniform_flat_blue);
-    Triangle triangle36 = Triangle(Point4(10, -5, 10), Point4(10, -5, 15),
-                                   Point4(5, -5, 15), uniform_flat_blue);
+    // Triangle triangle31 = Triangle(Point4(5, -15, 10), Point4(10, -15, 10),
+    //                                Point4(5, -5, 10), uniform_mat_red);
+    // Triangle triangle32 = Triangle(Point4(10, -15, 10), Point4(10, -5, 10),
+    //                                Point4(5, -5, 10), uniform_mat_red);
+    // Triangle triangle33 = Triangle(Point4(5, -15, 10), Point4(5, -5, 10),
+    //                                Point4(5, -15, 15), uniform_flat_random);
+    // Triangle triangle34 = Triangle(Point4(5, -15, 15), Point4(5, -5, 10),
+    //                                Point4(5, -5, 15), uniform_flat_random);
+    // Triangle triangle35 = Triangle(Point4(5, -5, 10), Point4(10, -5, 10),
+    //                                Point4(5, -5, 15), uniform_flat_blue);
+    // Triangle triangle36 = Triangle(Point4(10, -5, 10), Point4(10, -5, 15),
+    //                                Point4(5, -5, 15), uniform_flat_blue);
 
-    Triangle triangle41 = Triangle(Point4(-3, 7, 10), Point4(15, 7, 10),
-                                   Point4(-3, 13, 10), uniform_mat_red);
-    Triangle triangle42 = Triangle(Point4(15, 7, 10), Point4(15, 13, 10),
-                                   Point4(-3, 13, 10), uniform_mat_red);
-    Triangle triangle45 = Triangle(Point4(-3, 7, 10), Point4(-3, 7, 15),
-                                   Point4(15, 7, 10), uniform_flat_blue);
-    Triangle triangle46 = Triangle(Point4(-3, 7, 15), Point4(15, 7, 15),
-                                   Point4(15, 7, 10), uniform_flat_blue);
+    // Triangle triangle41 = Triangle(Point4(-3, 7, 10), Point4(15, 7, 10),
+    //                                Point4(-3, 13, 10), uniform_mat_red);
+    // Triangle triangle42 = Triangle(Point4(15, 7, 10), Point4(15, 13, 10),
+    //                                Point4(-3, 13, 10), uniform_mat_red);
+    // Triangle triangle45 = Triangle(Point4(-3, 7, 10), Point4(-3, 7, 15),
+    //                                Point4(15, 7, 10), uniform_flat_blue);
+    // Triangle triangle46 = Triangle(Point4(-3, 7, 15), Point4(15, 7, 15),
+    //                                Point4(15, 7, 10), uniform_flat_blue);
     // Complex *obj = new Complex(vec);
 
-    PointLight top_light(Point4(0, 0, 5), 0.8);
-    PointLight bot_light(Point4(3, 0, 2), 0.6);
-    CircleLight circle_light(Point4(18, -5, 8), 0.6, 3, Point4(-7, 8, 6));
+    // PointLight top_light(Point4(0, 0, 5), 0.8);
+    // PointLight bot_light(Point4(3, 0, 2), 0.6);
+    // CircleLight circle_light(Point4(18, -5, 8), 0.6, 3, Point4(-7, 8, 6));
 
     Camera camera(Point4(0, 0, 0), Vector4(0, 0, 1), Vector4(0, 1, 0), 45, 45,
                   Point4(0, 0, 5));
@@ -496,34 +354,35 @@ int main(int argc, char** argv)
     scene.addObject(ball2);
     scene.addObject(ball3);
     scene.addObject(ball4);
-    scene.addObject(light_ball);
-    scene.addObject(triangle11);
-    scene.addObject(triangle12);
-    scene.addObject(triangle13);
-    scene.addObject(triangle14);
-    scene.addObject(triangle15);
-    scene.addObject(triangle16);
+    // scene.addObject(triangle11);
+    // scene.addObject(triangle12);
+    // scene.addObject(triangle13);
+    // scene.addObject(triangle14);
+    // scene.addObject(triangle15);
+    // scene.addObject(triangle16);
 
-    scene.addObject(triangle21);
-    scene.addObject(triangle22);
-    scene.addObject(triangle23);
-    scene.addObject(triangle24);
-    scene.addObject(triangle25);
-    scene.addObject(triangle26);
+    // scene.addObject(triangle21);
+    // scene.addObject(triangle22);
+    // scene.addObject(triangle23);
+    // scene.addObject(triangle24);
+    // scene.addObject(triangle25);
+    // scene.addObject(triangle26);
 
-    scene.addObject(triangle31);
-    scene.addObject(triangle32);
-    scene.addObject(triangle33);
-    scene.addObject(triangle34);
-    scene.addObject(triangle35);
-    scene.addObject(triangle36);
+    // scene.addObject(triangle31);
+    // scene.addObject(triangle32);
+    // scene.addObject(triangle33);
+    // scene.addObject(triangle34);
+    // scene.addObject(triangle35);
+    // scene.addObject(triangle36);
 
-    scene.addObject(triangle41);
-    scene.addObject(triangle42);
-    scene.addObject(triangle45);
-    scene.addObject(triangle46);
+    // scene.addObject(triangle41);
+    // scene.addObject(triangle42);
+    // scene.addObject(triangle45);
+    // scene.addObject(triangle46);
     // scene.addObject(light_ball);
     // scene.addLight(circle_light);
+    scene.addObject(light_ball);
+    scene.addLights(light_ball);
     scene.setCamera(camera);
     time_t load_end = std::time(nullptr);
     std::cout << "Took: " << load_end - load_start << "s to Load objects"

@@ -6,6 +6,8 @@
 #include <vector>
 #include <algorithm>
 #include <limits>
+#include <optional>
+#include <vector>
 
 // https://en.wikipedia.org/wiki/Minimum_bounding_box#Axis-aligned_minimum_bounding_box
 struct AABB {
@@ -30,3 +32,6 @@ struct BVHNode {
 class Object;
 
 int build(std::vector<BVHNode>& pool, std::vector<Object*>& objs, int start, int end);
+std::pair<std::optional<Point4>, Object*>
+bvh_intersect(const std::vector<BVHNode>& pool, const std::vector<Object*>& objs,
+              const Point4& origin, const Vector4& dir, int node_idx = 0);

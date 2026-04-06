@@ -13,6 +13,7 @@ public:
     Vector4 get_normal(const Point4& p) override;
     TextureInfo *get_texture(const Point4& p) override;
     AABB get_bounds() const;
+    Point4 get_centroid() const;
 
     Point4 p1;
     Point4 p2;

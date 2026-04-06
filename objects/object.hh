@@ -18,6 +18,7 @@ public:
     virtual Vector4 get_normal(const Point4& p) = 0;
     virtual TextureInfo *get_texture(const Point4& p) = 0;
     virtual AABB get_bounds() const = 0;
+    virtual Point4 get_centroid() const = 0;
 
     std::shared_ptr<TextureMaterial> texture = nullptr;
 };

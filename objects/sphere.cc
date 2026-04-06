@@ -115,3 +115,8 @@ AABB Sphere::get_bounds() const {
     return { Point4(center.x - radius, center.y - radius, center.z - radius),
              Point4(center.x + radius, center.y + radius, center.z + radius) };
 }
+
+Point4 Sphere::get_centroid() const
+{
+    return center;
+}

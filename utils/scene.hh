@@ -14,11 +14,13 @@ public:
     ~Scene();
 
     void addObject(Object& obj);
+    void addLights(Object& obj);
     void setCamera(const Camera& cam);
 
     void build_bvh();
 
     std::vector<Object*> objects;
+    std::vector<Object*> lights;
     Camera camera;
 
     // The bounding boxes in the scene

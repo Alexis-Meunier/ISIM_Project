@@ -19,3 +19,8 @@ public:
     double open_angle_y;
     Point4 zmin;
 };
+
+
+std::pair<Vector4, Vector4> get_basis(const Camera& cam);
+
+std::pair<float, float> get_camera_plane(const Camera& cam);
