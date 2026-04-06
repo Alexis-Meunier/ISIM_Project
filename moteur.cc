@@ -36,6 +36,8 @@ Vector4 get_outgoing_ray(float angle_margin, Vector4& normal, Vector4& reflected
 
 Color compute_direct_rays(Scene& scene, const Point4& hit, Vector4& normal, Point4& offset_hit, TextureInfo *info)
 {
+    if (info->kd <= 0.1f) return Color(0, 0, 0);
+
     float direct_r = 0, direct_g = 0, direct_b = 0;
     float ar = info->color->colors[RED] / 255.f;
     float ag = info->color->colors[GREEN] / 255.f;
@@ -103,7 +105,12 @@ Color compute_indirect_rays(Scene& scene, Object *obj, Vector4& normal, const Po
         // Hit nothing
         if (!next_hit || next_obj == obj) continue;
 
-        float w = info->kd * std::max(0.f, dot_product(normal, outgoing));
+
+        float cos_theta = std::max(0.f, dot_product(normal, outgoing));
+        float diffuse_w  = info->kd * cos_theta;
+        float specular_w = info->ks; // specular doesn't attenuate by cos_theta
+
+        float w = diffuse_w + specular_w;
 
         // Send ray towards the object
         Color incoming = cast_ray(*next_hit, next_obj, scene, depth + 1);
@@ -259,13 +266,13 @@ int main(int argc, char** argv)
 
     time_t load_start = std::time(nullptr);
     TextureInfo
-    flat_random{ kd: 0.2, ks: 0.9, ns: 0.9, color: new Color(68, 164, 112) };
+    flat_random{ kd: 0.2, ks: 0.8, ns: 0.9, color: new Color(68, 164, 112) };
     TextureInfo
-    a{ kd: 1.f, ks: 1.f, ns: 0.9, color: new Color(255, 255, 0) };
+    a{ kd: 0.1f, ks: 0.9f, ns: 0.9, color: new Color(255, 255, 0) };
     TextureInfo
-    mat_red{ kd: 0.9, ks: 0.2, ns: 0.3, color: new Color(255, 0, 0) };
+    mat_red{ kd: 0.8f, ks: 0.2, ns: 0.9, color: new Color(255, 0, 0) };
     TextureInfo
-    something_text{ kd: 0.3, ks: 0.3, ns: 0.8, color: new Color(0, 255, 255) };
+    something_text{ kd: 0.3, ks: 0.3, ns: 0.9, color: new Color(0, 255, 255) };
     LightInfo light;
     light.kd = 0.5f;
     light.ks = 0.2f;

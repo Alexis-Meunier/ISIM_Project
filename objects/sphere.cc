@@ -118,5 +118,13 @@ AABB Sphere::get_bounds() const {
 
 Point4 Sphere::get_centroid() const
 {
-    return center;
+    float u = (static_cast<float>(rand()) / RAND_MAX) * 2.f * M_PI;
+    float v = (static_cast<float>(rand()) / RAND_MAX) * M_PI;
+    Point4 sample(
+        center.x + radius * std::sin(v) * std::cos(u),
+        center.y + radius * std::sin(v) * std::sin(u),
+        center.z + radius * std::cos(v)
+    );
+
+    return sample;
 }
