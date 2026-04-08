@@ -9,10 +9,11 @@ float get_angle_margin(const TextureInfo& text)
     return (1.f - text.ks) * (M_PI / 2.f);
 }
 
-Vector4 get_outgoing_ray(float angle_margin, Vector4& normal, Vector4& reflected)
+Vector4 get_outgoing_ray(float angle_margin, Vector4& normal,
+                         Vector4& reflected)
 {
     float rand_angle = (static_cast<float>(rand()) / RAND_MAX) * angle_margin;
-    float rand_dir   = (static_cast<float>(rand()) / RAND_MAX) * 2.f * M_PI;
+    float rand_dir = (static_cast<float>(rand()) / RAND_MAX) * 2.f * M_PI;
 
     auto diff_from_reflected = Vector4{ 0, 1, 0 };
     if (dot_product(normal, reflected) == 1)
@@ -44,9 +45,11 @@ Vector4 get_outgoing_ray(float angle_margin, Vector4& normal, Vector4& reflected
     return Vector4();
 }
 
-Color compute_direct_rays(Scene& scene, const Point4& hit, Vector4& normal, Point4& offset_hit, TextureInfo *info)
+Color compute_direct_rays(Scene& scene, const Point4& hit, Vector4& normal,
+                          Point4& offset_hit, TextureInfo* info)
 {
-    if (info->kd <= 0.1f) return Color(0, 0, 0);
+    if (info->kd <= 0.1f)
+        return Color(0, 0, 0);
 
     float direct_r = 0, direct_g = 0, direct_b = 0;
     float ar = info->color->colors[RED] / 255.f;
@@ -62,24 +65,28 @@ Color compute_direct_rays(Scene& scene, const Point4& hit, Vector4& normal, Poin
 
         // Get the center of the light
         auto centroid = light_obj->get_centroid();
-        Vector4 to_light(centroid.x - hit.x,
-                         centroid.y - hit.y,
+        Vector4 to_light(centroid.x - hit.x, centroid.y - hit.y,
                          centroid.z - hit.z);
         float dist_to_light = std::sqrt(dot_product(to_light, to_light));
         to_light.normalize();
 
         // Compute angle
         float cos_theta = dot_product(normal, to_light);
-        if (cos_theta <= 0) continue;
-        
+        if (cos_theta <= 0)
+            continue;
+
         // Shadow check
-        auto [sh, so] = bvh_intersect(scene.bvh_pool, scene.objects, offset_hit, to_light);
-        if (sh && so != light_obj) {
+        auto [sh, so] =
+            bvh_intersect(scene.bvh_pool, scene.objects, offset_hit, to_light);
+        if (sh && so != light_obj)
+        {
             float to_blocker = distance(offset_hit, *sh);
-            if (to_blocker < dist_to_light - 0.01f) continue; // in shadow
+            if (to_blocker < dist_to_light - 0.01f)
+                continue; // in shadow
         }
 
-        // Color of light * color of object * power of light * diffuse variable * angle of rays
+        // Color of light * color of object * power of light * diffuse variable
+        // * angle of rays
         float power = li->lightPower * cos_theta * info->kd;
         direct_r += (li->color->colors[RED] / 255.f) * power * ar;
         direct_g += (li->color->colors[GREEN] / 255.f) * power * ag;
@@ -89,7 +96,18 @@ Color compute_direct_rays(Scene& scene, const Point4& hit, Vector4& normal, Poin
     return Color(direct_r * 255, direct_g * 255, direct_b * 255);
 }
 
-Color compute_indirect_rays(Scene& scene, Object *obj, Vector4& normal, const Point4& hit, const Vector4& ray, Point4& offset_hit, TextureInfo *info, int depth)
+Vector4 get_ingoing_ray(Vector4& dir, Vector4& normal, float eta)
+{
+    float cos_dir_norm =
+        -dot_product(dir, normal); //- as the 2 point in different directions
+    float sin_squared_ingoing = eta * eta * (1 - (cos_dir_norm * cos_dir_norm));
+    if (sin_squared_ingoing > 1)
+        return Vector4(); // error, total internal refraction
+    float cos_ingoing = std::sqrt(1 - sin_squared_ingoing);
+    return dir * eta + normal * (eta * cos_dir_norm - cos_ingoing);
+}
+
+Color compute_indirect_rays(Scene& scene, Object *obj, Vector4& normal, const Point4& hit, const Vector4& ray, Point4& offset_hit, TextureInfo *info, int depth, float previous_eta = 1)
 {
     // Ready needed variables such as angle with BRDF
     float ar = info->color->colors[RED] / 255.f;
@@ -105,19 +123,32 @@ Color compute_indirect_rays(Scene& scene, Object *obj, Vector4& normal, const Po
     float indirect_r = 0, indirect_g = 0, indirect_b = 0;
     float margin_angle = get_angle_margin(*info);
     int nb_valid = 0;
+    float eta = info->eta != 0
+        ? previous_eta / info->eta
+        : previous_eta; // divide refraction index of where we are coming from
+                        // where we are going
 
     // Send rays to get indirect lighting
     for (int i = 0; i < NB_RAYS_REFLECTED; i++)
     {
-        Vector4 outgoing = get_outgoing_ray(margin_angle, normal, R);
+        Vector4 new_ray;
+        if ((static_cast<float>(rand()) / RAND_MAX) > (1 - info->kr))
+        {
+            new_ray = get_ingoing_ray(V, normal, eta);
+        }
+        else
+        {
+            new_ray = get_outgoing_ray(margin_angle, normal, R);
+        }
 
-        auto [next_hit, next_obj] = bvh_intersect(scene.bvh_pool, scene.objects, offset_hit, outgoing);
+        auto [next_hit, next_obj] =
+            bvh_intersect(scene.bvh_pool, scene.objects, offset_hit, new_ray);
         // Hit nothing
-        if (!next_hit || next_obj == obj) continue;
+        if (!next_hit || next_obj == obj)
+            continue;
 
-
-        float cos_theta = std::max(0.f, dot_product(normal, outgoing));
-        float diffuse_w  = info->kd * cos_theta;
+        float cos_theta = std::max(0.f, dot_product(normal, new_ray));
+        float diffuse_w = info->kd * cos_theta;
         float specular_w = info->ks; // specular doesn't attenuate by cos_theta
 
         float w = diffuse_w + specular_w;
@@ -130,7 +161,8 @@ Color compute_indirect_rays(Scene& scene, Object *obj, Vector4& normal, const Po
         nb_valid++;
     }
 
-    if (nb_valid > 0) {
+    if (nb_valid > 0)
+    {
         indirect_r /= nb_valid;
         indirect_g /= nb_valid;
         indirect_b /= nb_valid;
@@ -139,23 +171,21 @@ Color compute_indirect_rays(Scene& scene, Object *obj, Vector4& normal, const Po
     return Color(indirect_r * 255, indirect_g * 255, indirect_b * 255);
 }
 
-Color compute_light_rays(LightTexture *light_tex, const Point4& hit, int depth)
+Color compute_light_rays(LightTexture* light_tex, const Point4& hit, int depth)
 {
     // Only consider the first depth, further depths will be handled later
     if (depth == 0)
     {
         auto li = light_tex->get_elements(hit);
-        return Color(
-            li->color->colors[RED] * li->lightPower,
-            li->color->colors[GREEN] * li->lightPower,
-            li->color->colors[BLUE] * li->lightPower
-        );
+        return Color(li->color->colors[RED] * li->lightPower,
+                     li->color->colors[GREEN] * li->lightPower,
+                     li->color->colors[BLUE] * li->lightPower);
     }
 
     return Color(0, 0, 0);
 }
 
-Color cast_ray(const Point4& hit, const Vector4& ray, Object* obj, Scene& scene, int depth)
+Color cast_ray(const Point4& hit, const Vector4& ray, Object* obj, Scene& scene, int depth, float previous_eta)
 {
     if (depth == MAX_DEPTH)
         return Color(0, 0, 0);
@@ -172,11 +202,8 @@ Color cast_ray(const Point4& hit, const Vector4& ray, Object* obj, Scene& scene,
     normal.normalize();
 
     // Offset in case of self-intersection
-    Point4 offset_hit(
-        hit.x + normal.x * 0.001f,
-        hit.y + normal.y * 0.001f,
-        hit.z + normal.z * 0.001f
-    );
+    Point4 offset_hit(hit.x + normal.x * 0.001f, hit.y + normal.y * 0.001f,
+                      hit.z + normal.z * 0.001f);
 
     // Compute direct light rays (NEE)
     auto direct_c = compute_direct_rays(scene, hit, normal, offset_hit, info);
@@ -185,16 +212,14 @@ Color cast_ray(const Point4& hit, const Vector4& ray, Object* obj, Scene& scene,
     float direct_b = direct_c.colors[BLUE] / 255.f;
 
     // Compute indirect colors (recursion)
-    auto indirect_c = compute_indirect_rays(scene, obj, normal, hit, ray, offset_hit, info, depth);
+    auto indirect_c = compute_indirect_rays(scene, obj, normal, hit, ray, offset_hit, info, depth, previous_eta);
     float indirect_r = indirect_c.colors[RED] / 255.f;
     float indirect_g = indirect_c.colors[GREEN] / 255.f;
     float indirect_b = indirect_c.colors[BLUE] / 255.f;
 
-    return Color(
-        std::min(255.f, (direct_r + indirect_r) * 255.f),
-        std::min(255.f, (direct_g + indirect_g) * 255.f),
-        std::min(255.f, (direct_b + indirect_b) * 255.f)
-    );
+    return Color(std::min(255.f, (direct_r + indirect_r) * 255.f),
+                 std::min(255.f, (direct_g + indirect_g) * 255.f),
+                 std::min(255.f, (direct_b + indirect_b) * 255.f));
 }
 
 PPM computeScene(Scene& scene, const int& image_h, const int& image_w)
@@ -275,20 +300,15 @@ int main(int argc, char** argv)
     }
 
     time_t load_start = std::time(nullptr);
-
-    // TextureInfo
-    // flat_random{ kd: 0.4, ks: 0.2, ka: 0.f, ns: 0.5, color: new Color(68, 164, 112), lightPower: 0.f };
-    // TextureInfo
-    // a{ kd: 0.2f, ks: 0.8f, ka: 0.f, ns: 0.9, color: new Color(255, 255, 0), lightPower: 0.f };
+    TextureInfo flat_random{ kd: 0.4, ks: 0.2, color: new Color(68, 164, 112) };
+    TextureInfo a{ kd: 0.1f, ks: 0.9f, color: new Color(255, 255, 0) };
+    TextureInfo mat_red{ kd: 0.8f, ks: 0.2, color: new Color(255, 0, 0) };
     TextureInfo
-    mat_red{ kd: 0.8f, ks: 0.2, ka: 0.f, ns: 0.9, color: new Color(255, 0, 0), lightPower: 0.f };
-    // TextureInfo
-    // something_text{ kd: 0.3, ks: 0.3, ka: 0.f, ns: 0.9, color: new Color(0, 255, 255), lightPower: 0.f };
+    something_text{ kd: 0.3, ks: 0.3, color: new Color(0, 255, 255) };
     LightInfo light;
     light.kd = 0.5f;
     light.ks = 0.2f;
-    light.ns = 0.9f;
-    light.color = new Color(245,241,184);
+    light.color = new Color(255, 255, 255);
     light.lightPower = 0.8f;
 
     time_t load_textureInfo = std::time(nullptr);

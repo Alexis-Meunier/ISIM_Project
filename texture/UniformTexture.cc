@@ -1,17 +1,17 @@
 #include "UniformTexture.hh"
 
-TextureInfo *UniformTexture::get_elements(Point4 position)
+TextureInfo* UniformTexture::get_elements(Point4 position)
 {
     return info;
 }
 
 UniformTexture::UniformTexture()
 {
-    TextureInfo *textInfo = new TextureInfo();
+    TextureInfo* textInfo = new TextureInfo();
     textInfo->kd = 1;
-    textInfo->ks = 0.2;
-    textInfo->ka = 0.5;
-    textInfo->ns = 0.8;
+    textInfo->ks = 0;
+    textInfo->kr = 0;
+    textInfo->eta = 0;
     textInfo->color = new Color();
     info = textInfo;
     textInfo->lightPower = 0;
@@ -19,17 +19,42 @@ UniformTexture::UniformTexture()
 
 UniformTexture::UniformTexture(const Color& color)
 {
-    TextureInfo *textInfo = new TextureInfo();
+    TextureInfo* textInfo = new TextureInfo();
     textInfo->kd = 1;
-    textInfo->ks = 0.2;
-    textInfo->ka = 0.5;
-    textInfo->ns = 0.8;
+    textInfo->ks = 0;
+    textInfo->kr = 0;
+    textInfo->eta = 0;
     textInfo->color = new Color(color);
     info = textInfo;
     textInfo->lightPower = 0;
 }
 
-UniformTexture::UniformTexture(TextureInfo *info)
+UniformTexture::UniformTexture(const Color& color, float kd, float ks)
+{
+    TextureInfo* textInfo = new TextureInfo();
+    textInfo->kd = kd;
+    textInfo->ks = ks;
+    textInfo->kr = 0;
+    textInfo->eta = 0;
+    textInfo->color = new Color(color);
+    info = textInfo;
+    textInfo->lightPower = 0;
+}
+
+UniformTexture::UniformTexture(const Color& color, float kd, float ks, float kr,
+                               float eta)
+{
+    TextureInfo* textInfo = new TextureInfo();
+    textInfo->kd = kd;
+    textInfo->ks = ks;
+    textInfo->kr = kr;
+    textInfo->eta = eta;
+    textInfo->color = new Color(color);
+    info = textInfo;
+    textInfo->lightPower = 0;
+}
+
+UniformTexture::UniformTexture(TextureInfo* info)
 {
     this->info = info;
 }
