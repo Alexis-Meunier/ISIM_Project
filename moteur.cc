@@ -1,6 +1,6 @@
 #include "moteur.hh"
 
-Color cast_ray(const Point4& hit, const Vector4& ray, Object* obj, Scene& scene, int depth);
+Color cast_ray(const Point4& hit, const Vector4& ray, Object* obj, Scene& scene, int depth, float previous_eta = 1);
 
 
 // Angle returned in radians [0, Pi/2]
@@ -154,7 +154,7 @@ Color compute_indirect_rays(Scene& scene, Object *obj, Vector4& normal, const Po
         float w = diffuse_w + specular_w;
 
         // Send ray towards the object
-        Color incoming = cast_ray(*next_hit, outgoing, next_obj, scene, depth + 1);
+        Color incoming = cast_ray(*next_hit, new_ray, next_obj, scene, depth + 1);
         indirect_r += (incoming.colors[RED] / 255.f) * w * ar;
         indirect_g += (incoming.colors[GREEN] / 255.f) * w * ag;
         indirect_b += (incoming.colors[BLUE] / 255.f) * w * ab;
@@ -354,12 +354,12 @@ int main(int argc, char** argv)
 
     Scene scene;
     scene.addObject(bot_bound);
-    scene.addObject(top_bound);
-    scene.addObject(right_bound);
-    scene.addObject(left_bound);
-    scene.addObject(forward_bound);
+    // scene.addObject(top_bound);
+    // scene.addObject(right_bound);
+    // scene.addObject(left_bound);
+    // scene.addObject(forward_bound);
 
-    scene.addObject(car);
+    // scene.addObject(car);
     scene.addObject(skull);
 
     // scene.addObject(light_ball);

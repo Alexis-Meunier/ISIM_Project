@@ -22,8 +22,6 @@ ImageTexture::ImageTexture(const std::string& filepath, float kd, float ks,
     cached_info = new TextureInfo();
     cached_info->kd = kd;
     cached_info->ks = ks;
-    cached_info->ka = ka;
-    cached_info->ns = ns;
     cached_info->lightPower = 0.0f;
     cached_info->color = new Color();
 }
