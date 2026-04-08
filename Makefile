@@ -11,11 +11,13 @@ CC = g++
 SKEL_CPP_FILES = objects/sphere.cc \
 				 objects/triangle.cc \
 				 objects/bvh.cc \
+				 objects/mesh.cc \
 				 moteur.cc \
 				 camera/camera.cc \
 				 image/image.cc \
 				 light/circle_light.cc \
 				 light/point_light.cc \
+				 texture/ImageTexture.cc \
 				 texture/UniformTexture.cc \
 				 texture/LightTexture.cc \
 				 utils/color.cc \

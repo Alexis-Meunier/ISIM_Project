@@ -3,6 +3,8 @@
 #include "object.hh"
 #include "../utils/point4.hh"
 
+struct UVCoord { float u, v; };
+
 class Triangle : public Object {
 public:
     Triangle(const Point4& p1, const Point4& p2, const Point4& p3);
@@ -15,8 +17,14 @@ public:
     AABB get_bounds() const;
     Point4 get_centroid() const;
 
+    AABB compute_my_bounds();
+
     Point4 p1;
     Point4 p2;
     Point4 p3;
     Vector4 normal;
+    Point4 last_hit;
+    float last_w0, last_w1, last_w2;
+    UVCoord uv1{0,0}, uv2{1,0}, uv3{0.5f,1};
+    AABB cached_bounds;
 };

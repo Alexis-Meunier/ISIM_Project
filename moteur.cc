@@ -2,6 +2,7 @@
 
 Color cast_ray(const Point4& hit, Object* obj, Scene& scene, int depth);
 
+
 // Angle returned in radians [0, Pi/2]
 float get_angle_margin(const TextureInfo& text)
 {
@@ -268,128 +269,60 @@ int main(int argc, char** argv)
     TextureInfo
     flat_random{ kd: 0.4, ks: 0.2, ns: 0.5, color: new Color(68, 164, 112) };
     TextureInfo
-    a{ kd: 0.1f, ks: 0.9f, ns: 0.9, color: new Color(255, 255, 0) };
+    a{ kd: 0.2f, ks: 0.8f, ns: 0.9, color: new Color(255, 255, 0) };
     TextureInfo
     mat_red{ kd: 0.8f, ks: 0.2, ns: 0.9, color: new Color(255, 0, 0) };
     TextureInfo
     something_text{ kd: 0.3, ks: 0.3, ns: 0.9, color: new Color(0, 255, 255) };
+
     LightInfo light;
     light.kd = 0.5f;
     light.ks = 0.2f;
     light.ns = 0.9f;
-    light.color = new Color(255,255,255);
+    light.color = new Color(245,241,184); //#F5F1B8
     light.lightPower = 0.8f;
 
-    auto uniform_flat_red = std::make_shared<UniformTexture>(Color(255, 0, 0));
-    auto uniform_flat_blue = std::make_shared<UniformTexture>(Color(0, 0, 255));
-    auto uniform_flat_cyan =
-        std::make_shared<UniformTexture>(Color(0, 255, 254));
-    auto uniform_flat_random = std::make_shared<UniformTexture>(&flat_random);
-    auto uniform_a = std::make_shared<UniformTexture>(&a);
+    // auto uniform_flat_white = std::make_shared<UniformTexture>(Color(255, 255, 255));
+    auto uniform_flat_red = std::make_shared<UniformTexture>(Color(182, 35, 48));
+    auto uniform_flat_blue = std::make_shared<UniformTexture>(Color(82, 41, 214));
+    auto uniform_flat_green = std::make_shared<UniformTexture>(Color(83, 172, 89));
+    auto uniform_flat_cyan = std::make_shared<UniformTexture>(Color(94, 154, 161)); //5e9aa1
     auto uniform_mat_red = std::make_shared<UniformTexture>(&mat_red);
-    auto uniform_something = std::make_shared<UniformTexture>(&something_text);
     auto light_texture = std::make_shared<LightTexture>(&light);
 
-    Sphere ball1(uniform_mat_red, Point4(5, -5, 15), 4);
-    Sphere ball2(uniform_something, Point4(-5, -5, 15), 4);
-    Sphere ball3(uniform_flat_random, Point4(0, 0, 20), 4);
-    Sphere ball4(uniform_a, Point4(0, 10, 25), 3);
-    Sphere light_ball(light_texture, Point4(0, 20, 10), 4);
+    // Sphere ball1(uniform_mat_red, Point4(5, -5, 15), 4);
+    Sphere light_ball(light_texture, Point4(0, 20, 20), 3);
+    Sphere light_ball2(light_texture, Point4(0, 0, -10), 3);
 
-    // Triangle triangle1 = Triangle(Point4(1, 0, 8), Point4(0, 1 *
-    // std::sqrt(3), 8), Point4(-1, 0, 8), uniform_flat_random); Triangle
-    // triangle2 = Triangle(Point4(14, 5, 6), Point4(6, 7, 8), Point4(20, -1,
-    // 4), uniform_mat_red);
-    // Triangle triangle11 = Triangle(Point4(-10, -15, 10), Point4(-5, -15, 10),
-    //                                Point4(-10, -5, 10), uniform_mat_red);
-    // Triangle triangle12 = Triangle(Point4(-5, -15, 10), Point4(-5, -5, 10),
-    //                                Point4(-10, -5, 10), uniform_mat_red);
-    // Triangle triangle13 = Triangle(Point4(-5, -15, 10), Point4(-5, -15, 15),
-    //                                Point4(-5, -5, 10), uniform_flat_random);
-    // Triangle triangle14 = Triangle(Point4(-5, -15, 15), Point4(-5, -5, 15),
-    //                                Point4(-5, -5, 10), uniform_flat_random);
-    // Triangle triangle15 = Triangle(Point4(-10, -5, 10), Point4(-5, -5, 10),
-    //                                Point4(-10, -5, 15), uniform_flat_blue);
-    // Triangle triangle16 = Triangle(Point4(-5, -5, 10), Point4(-5, -5, 15),
-    //                                Point4(-10, -5, 15), uniform_flat_blue);
+    auto image_texture = std::make_shared<ImageTexture>("image.jpg");
+    // auto mesh = Mesh::rectangle(Point4(-10, -15, 10), Point4(-5, -15, 10), Point4(-5, -5, 10), Point4(-10, -5, 10), image_texture);
 
-    // Triangle triangle21 = Triangle(Point4(-10, 5, 10), Point4(-5, 5, 10),
-    //                                Point4(-10, 15, 10), uniform_mat_red);
-    // Triangle triangle22 = Triangle(Point4(-5, 5, 10), Point4(-5, 15, 10),
-    //                                Point4(-10, 15, 10), uniform_mat_red);
-    // Triangle triangle23 = Triangle(Point4(-5, 5, 10), Point4(-5, 5, 15),
-    //                                Point4(-5, 15, 10), uniform_flat_random);
-    // Triangle triangle24 = Triangle(Point4(-5, 5, 15), Point4(-5, 15, 15),
-    //                                Point4(-5, 15, 10), uniform_flat_random);
-    // Triangle triangle25 = Triangle(Point4(-10, 5, 10), Point4(-10, 5, 15),
-    //                                Point4(-5, 5, 10), uniform_flat_blue);
-    // Triangle triangle26 = Triangle(Point4(-10, 5, 15), Point4(-5, 5, 15),
-    //                                Point4(-5, 5, 10), uniform_flat_blue);
+    auto car = Mesh::from_obj("plant.obj", uniform_mat_red, Vector4(0, -20, 20), 1.7);
+    auto skull = Mesh::from_obj("skull.obj", uniform_mat_red, Vector4(10, -20, 20), 0.7);
 
-    // Triangle triangle31 = Triangle(Point4(5, -15, 10), Point4(10, -15, 10),
-    //                                Point4(5, -5, 10), uniform_mat_red);
-    // Triangle triangle32 = Triangle(Point4(10, -15, 10), Point4(10, -5, 10),
-    //                                Point4(5, -5, 10), uniform_mat_red);
-    // Triangle triangle33 = Triangle(Point4(5, -15, 10), Point4(5, -5, 10),
-    //                                Point4(5, -15, 15), uniform_flat_random);
-    // Triangle triangle34 = Triangle(Point4(5, -15, 15), Point4(5, -5, 10),
-    //                                Point4(5, -5, 15), uniform_flat_random);
-    // Triangle triangle35 = Triangle(Point4(5, -5, 10), Point4(10, -5, 10),
-    //                                Point4(5, -5, 15), uniform_flat_blue);
-    // Triangle triangle36 = Triangle(Point4(10, -5, 10), Point4(10, -5, 15),
-    //                                Point4(5, -5, 15), uniform_flat_blue);
-
-    // Triangle triangle41 = Triangle(Point4(-3, 7, 10), Point4(15, 7, 10),
-    //                                Point4(-3, 13, 10), uniform_mat_red);
-    // Triangle triangle42 = Triangle(Point4(15, 7, 10), Point4(15, 13, 10),
-    //                                Point4(-3, 13, 10), uniform_mat_red);
-    // Triangle triangle45 = Triangle(Point4(-3, 7, 10), Point4(-3, 7, 15),
-    //                                Point4(15, 7, 10), uniform_flat_blue);
-    // Triangle triangle46 = Triangle(Point4(-3, 7, 15), Point4(15, 7, 15),
-    //                                Point4(15, 7, 10), uniform_flat_blue);
-    // Complex *obj = new Complex(vec);
-
-    // PointLight top_light(Point4(0, 0, 5), 0.8);
-    // PointLight bot_light(Point4(3, 0, 2), 0.6);
-    // CircleLight circle_light(Point4(18, -5, 8), 0.6, 3, Point4(-7, 8, 6));
+    auto bot_bound = Mesh::rectangle(Point4(-40, -20, 0), Point4(40, -20, 0), Point4(40, -20, 50), Point4(-40, -20, 50), image_texture);
+    auto left_bound = Mesh::rectangle(Point4(-40, -20, -100), Point4(-40, -20, 50), Point4(-40, 20, 50), Point4(-40, 20, -100), uniform_flat_blue);
+    auto right_bound = Mesh::rectangle(Point4(40, -20, 50), Point4(40, -20, -100), Point4(40, 20, -100), Point4(40, 20, 50), uniform_flat_green);
+    auto top_bound = Mesh::rectangle(Point4(-40, 20, 50), Point4(40, 20, 50), Point4(40, 20, -100), Point4(-40, 20, -100), uniform_flat_red);
+    auto forward_bound = Mesh::rectangle(Point4(-100, -20, 35), Point4(100, -20, 35), Point4(100, 20, 35), Point4(-100, 20, 35), uniform_flat_cyan);
 
     Camera camera(Point4(0, 0, 0), Vector4(0, 0, 1), Vector4(0, 1, 0), 45, 45,
                   Point4(0, 0, 5));
 
     Scene scene;
-    scene.addObject(ball1);
-    scene.addObject(ball2);
-    scene.addObject(ball3);
-    scene.addObject(ball4);
-    // scene.addObject(triangle11);
-    // scene.addObject(triangle12);
-    // scene.addObject(triangle13);
-    // scene.addObject(triangle14);
-    // scene.addObject(triangle15);
-    // scene.addObject(triangle16);
+    scene.addObject(bot_bound);
+    scene.addObject(top_bound);
+    scene.addObject(right_bound);
+    scene.addObject(left_bound);
+    scene.addObject(forward_bound);
 
-    // scene.addObject(triangle21);
-    // scene.addObject(triangle22);
-    // scene.addObject(triangle23);
-    // scene.addObject(triangle24);
-    // scene.addObject(triangle25);
-    // scene.addObject(triangle26);
+    scene.addObject(car);
+    scene.addObject(skull);
 
-    // scene.addObject(triangle31);
-    // scene.addObject(triangle32);
-    // scene.addObject(triangle33);
-    // scene.addObject(triangle34);
-    // scene.addObject(triangle35);
-    // scene.addObject(triangle36);
-
-    // scene.addObject(triangle41);
-    // scene.addObject(triangle42);
-    // scene.addObject(triangle45);
-    // scene.addObject(triangle46);
-    // scene.addObject(light_ball);
-    // scene.addLight(circle_light);
     scene.addObject(light_ball);
     scene.addLights(light_ball);
+    scene.addObject(light_ball2);
+    scene.addLights(light_ball2);
     scene.setCamera(camera);
     time_t load_end = std::time(nullptr);
     std::cout << "Took: " << load_end - load_start << "s to Load objects"

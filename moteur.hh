@@ -1,6 +1,6 @@
 #pragma once
 
-#define NB_RAYS 5
+#define NB_RAYS 1
 #define NB_RAYS_REFLECTED 3
 #define MAX_DEPTH 5
 
@@ -15,6 +15,8 @@
 #include "light/point_light.hh"
 #include "objects/sphere.hh"
 #include "objects/triangle.hh"
+#include "objects/mesh.hh"
+#include "texture/ImageTexture.hh"
 #include "texture/UniformTexture.hh"
 #include "texture/LightTexture.hh"
 #include "utils/scene.hh"

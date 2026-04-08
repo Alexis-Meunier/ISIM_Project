@@ -11,4 +11,7 @@ public:
     UniformTexture(const Color& info);
 
     TextureInfo *get_elements(Point4 position) override;
+
+private:
+    TextureInfo *info;
 };
