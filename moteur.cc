@@ -1,6 +1,6 @@
 #include "moteur.hh"
 
-Color cast_ray(const Point4& hit, Object* obj, Scene& scene, int depth);
+Color cast_ray(const Point4& hit, const Vector4& ray, Object* obj, Scene& scene, int depth);
 
 
 // Angle returned in radians [0, Pi/2]
@@ -80,14 +80,14 @@ Color compute_direct_rays(Scene& scene, const Point4& hit, Vector4& normal, Poin
     return Color(direct_r * 255, direct_g * 255, direct_b * 255);
 }
 
-Color compute_indirect_rays(Scene& scene, Object *obj, Vector4& normal, const Point4& hit, Point4& offset_hit, TextureInfo *info, int depth)
+Color compute_indirect_rays(Scene& scene, Object *obj, Vector4& normal, const Point4& hit, const Vector4& ray, Point4& offset_hit, TextureInfo *info, int depth)
 {
     // Ready needed variables such as angle with BRDF
     float ar = info->color->colors[RED] / 255.f;
     float ag = info->color->colors[GREEN] / 255.f;
     float ab = info->color->colors[BLUE] / 255.f;
 
-    auto V = Vector4(scene.camera.center - hit);
+    auto V = -(ray + hit);
     V.normalize();
 
     auto R = normal * 2.0f * dot_product(normal, V) - V;
@@ -114,7 +114,7 @@ Color compute_indirect_rays(Scene& scene, Object *obj, Vector4& normal, const Po
         float w = diffuse_w + specular_w;
 
         // Send ray towards the object
-        Color incoming = cast_ray(*next_hit, next_obj, scene, depth + 1);
+        Color incoming = cast_ray(*next_hit, R, next_obj, scene, depth + 1);
         indirect_r += (incoming.colors[RED] / 255.f) * w * ar;
         indirect_g += (incoming.colors[GREEN] / 255.f) * w * ag;
         indirect_b += (incoming.colors[BLUE] / 255.f) * w * ab;
@@ -146,7 +146,7 @@ Color compute_light_rays(LightTexture *light_tex, const Point4& hit, int depth)
     return Color(0, 0, 0);
 }
 
-Color cast_ray(const Point4& hit, Object* obj, Scene& scene, int depth)
+Color cast_ray(const Point4& hit, const Vector4& ray, Object* obj, Scene& scene, int depth)
 {
     if (depth == MAX_DEPTH)
         return Color(0, 0, 0);
@@ -176,7 +176,7 @@ Color cast_ray(const Point4& hit, Object* obj, Scene& scene, int depth)
     float direct_b = direct_c.colors[BLUE] / 255.f;
 
     // Compute indirect colors (recursion)
-    auto indirect_c = compute_indirect_rays(scene, obj, normal, hit, offset_hit, info, depth);
+    auto indirect_c = compute_indirect_rays(scene, obj, normal, hit, ray, offset_hit, info, depth);
     float indirect_r = indirect_c.colors[RED] / 255.f;
     float indirect_g = indirect_c.colors[GREEN] / 255.f;
     float indirect_b = indirect_c.colors[BLUE] / 255.f;
@@ -240,7 +240,7 @@ PPM computeScene(Scene& scene, const int& image_h, const int& image_w)
                     continue;
 
                 // Compute its color and add it to the pixel color
-                auto color = cast_ray(*intersection, obj, scene, 0);
+                auto color = cast_ray(*intersection, ray, obj, scene, 0);
                 red += color.colors[RED];
                 green += color.colors[GREEN];
                 blue += color.colors[BLUE];
@@ -266,6 +266,7 @@ int main(int argc, char** argv)
     }
 
     time_t load_start = std::time(nullptr);
+
     TextureInfo
     flat_random{ kd: 0.4, ks: 0.2, ns: 0.5, color: new Color(68, 164, 112) };
     TextureInfo
@@ -274,13 +275,15 @@ int main(int argc, char** argv)
     mat_red{ kd: 0.8f, ks: 0.2, ns: 0.9, color: new Color(255, 0, 0) };
     TextureInfo
     something_text{ kd: 0.3, ks: 0.3, ns: 0.9, color: new Color(0, 255, 255) };
-
     LightInfo light;
     light.kd = 0.5f;
     light.ks = 0.2f;
     light.ns = 0.9f;
-    light.color = new Color(245,241,184); //#F5F1B8
+    light.color = new Color(245,241,184);
     light.lightPower = 0.8f;
+
+    time_t load_textureInfo = std::time(nullptr);
+    printTimeTaken(load_start, load_textureInfo, "while loading texture Infos.");
 
     // auto uniform_flat_white = std::make_shared<UniformTexture>(Color(255, 255, 255));
     auto uniform_flat_red = std::make_shared<UniformTexture>(Color(182, 35, 48));
@@ -289,25 +292,36 @@ int main(int argc, char** argv)
     auto uniform_flat_cyan = std::make_shared<UniformTexture>(Color(94, 154, 161)); //5e9aa1
     auto uniform_mat_red = std::make_shared<UniformTexture>(&mat_red);
     auto light_texture = std::make_shared<LightTexture>(&light);
+    auto image_texture = std::make_shared<ImageTexture>("image.jpg");
+
+    time_t load_textures = std::time(nullptr);
+    printTimeTaken(load_textureInfo, load_textures, "while loading textures.");
 
     // Sphere ball1(uniform_mat_red, Point4(5, -5, 15), 4);
     Sphere light_ball(light_texture, Point4(0, 20, 20), 3);
     Sphere light_ball2(light_texture, Point4(0, 0, -10), 3);
 
-    auto image_texture = std::make_shared<ImageTexture>("image.jpg");
-    // auto mesh = Mesh::rectangle(Point4(-10, -15, 10), Point4(-5, -15, 10), Point4(-5, -5, 10), Point4(-10, -5, 10), image_texture);
-
-    auto car = Mesh::from_obj("plant.obj", uniform_mat_red, Vector4(0, -20, 20), 1.7);
-    auto skull = Mesh::from_obj("skull.obj", uniform_mat_red, Vector4(10, -20, 20), 0.7);
-
-    auto bot_bound = Mesh::rectangle(Point4(-40, -20, 0), Point4(40, -20, 0), Point4(40, -20, 50), Point4(-40, -20, 50), image_texture);
-    auto left_bound = Mesh::rectangle(Point4(-40, -20, -100), Point4(-40, -20, 50), Point4(-40, 20, 50), Point4(-40, 20, -100), uniform_flat_blue);
-    auto right_bound = Mesh::rectangle(Point4(40, -20, 50), Point4(40, -20, -100), Point4(40, 20, -100), Point4(40, 20, 50), uniform_flat_green);
-    auto top_bound = Mesh::rectangle(Point4(-40, 20, 50), Point4(40, 20, 50), Point4(40, 20, -100), Point4(-40, 20, -100), uniform_flat_red);
-    auto forward_bound = Mesh::rectangle(Point4(-100, -20, 35), Point4(100, -20, 35), Point4(100, 20, 35), Point4(-100, 20, 35), uniform_flat_cyan);
+    time_t load_spheres = std::time(nullptr);
+    printTimeTaken(load_textures, load_spheres, "while loading spheres.");
 
     Camera camera(Point4(0, 0, 0), Vector4(0, 0, 1), Vector4(0, 1, 0), 45, 45,
                   Point4(0, 0, 5));
+
+    auto car = Mesh::from_obj("plant.obj", uniform_mat_red, Point4(0, -20, 20), 1.7);
+    auto skull = Mesh::from_obj("skull.obj", uniform_mat_red, Point4(20, -20, 35), 0.7, {-90, 155, 0});
+
+    time_t load_obj = std::time(nullptr);
+    printTimeTaken(load_spheres, load_obj, "while loading .obj files.");
+
+    auto bot_bound = Mesh::rectangle(Point4(-40, -20, 50), Point4(40, -20, 50), Point4(40, -20, 0), Point4(-40, -20, 0), image_texture);
+    auto left_bound = Mesh::rectangle(Point4(-40, 20, -100), Point4(-40, 20, 50), Point4(-40, -20, 50), Point4(-40, -20, -100), uniform_flat_blue);
+    auto right_bound = Mesh::rectangle(Point4(40, 20, 50), Point4(40, 20, -100), Point4(40, -20, -100), Point4(40, -20, 50), uniform_flat_green);
+    auto top_bound = Mesh::rectangle(Point4(-40, 20, -100), Point4(40, 20, -100), Point4(40, 20, 50), Point4(-40, 20, 50), uniform_flat_red);
+    auto forward_bound = Mesh::rectangle(Point4(-100, 20, 35), Point4(100, 20, 35), Point4(100, -20, 35), Point4(-100, -20, 35), uniform_flat_cyan);
+
+    time_t load_border = std::time(nullptr);
+    printTimeTaken(load_obj, load_border, "while loading borders.");
+
 
     Scene scene;
     scene.addObject(bot_bound);
@@ -319,22 +333,22 @@ int main(int argc, char** argv)
     scene.addObject(car);
     scene.addObject(skull);
 
-    scene.addObject(light_ball);
+    // scene.addObject(light_ball);
     scene.addLights(light_ball);
-    scene.addObject(light_ball2);
-    scene.addLights(light_ball2);
+    // scene.addObject(light_ball2);
+    // scene.addLights(light_ball2);
     scene.setCamera(camera);
+
     time_t load_end = std::time(nullptr);
-    std::cout << "Took: " << load_end - load_start << "s to Load objects"
-              << std::endl;
+    printTimeTaken(load_border, load_end, "while loading Scene.\n");
 
     time_t start = std::time(nullptr);
     auto img = computeScene(scene, 1080, 1080);
     time_t end = std::time(nullptr);
-    std::cout << "\nTook: " << end - start << "s" << std::endl;
+    printTimeTaken(start, end, "");
 
     std::cout << "Saving Image" << std::endl;
-    img.save_image("results/" + std::string(argv[1]));
+    img.save_image("results/" + std::string(argv[1]) + ".ppm");
 
     return 0;
 }

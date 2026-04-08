@@ -5,6 +5,13 @@
 
 #include <vector>
 
+struct RotationCoords
+{
+    float x = 0.f;
+    float y = 0.f;
+    float z = 0.f;
+};
+
 class Mesh : public Object
 {
 public:
@@ -17,7 +24,7 @@ public:
 
     static Mesh from_obj(const std::string& path,
                             const std::shared_ptr<TextureMaterial>& texture,
-                        const Vector4& offset = Vector4(), const float& scale = 1.f);
+                        const Point4& offset = Point4(), const float& scale = 1.f, const RotationCoords& rotation = RotationCoords());
 
     std::optional<Point4> intersect(const Point4& start, const Vector4& dir) override;
     Vector4 get_normal(const Point4& p) override;

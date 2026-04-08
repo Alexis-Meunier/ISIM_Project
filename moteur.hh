@@ -4,6 +4,7 @@
 #define NB_RAYS_REFLECTED 3
 #define MAX_DEPTH 5
 
+
 #include <algorithm>
 #include <cmath>
 #include <ctime>

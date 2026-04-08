@@ -16,7 +16,9 @@ class Vector4
 
         // Arithmetic
         Vector4 operator+(const Vector4& p);
+        Vector4 operator+(const Point4& p) const;
         Vector4 operator-(const Vector4& p);
+        Vector4 operator-();
         Vector4 operator*(const double& scalar); // Translation
         float operator*(const Vector4& p); // Dot product
 

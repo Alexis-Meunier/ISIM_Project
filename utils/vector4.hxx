@@ -7,6 +7,17 @@ inline Vector4 Vector4::operator+(const Vector4& p)
     return Vector4(x + p.x, y + p.y, z + p.z, 1);
 }
 
+inline Vector4 Vector4::operator+(const Point4& p) const
+{
+    return Vector4(x + p.x, y + p.y, z + p.z, 1);
+}
+
+inline Vector4 Vector4::operator-()
+{
+    return Vector4(-x, -y, -z, 1);
+}
+
+
 inline Vector4 Vector4::operator-(const Vector4& p)
 {
     return Vector4(x - p.x, y - p.y, z - p.z, 1);

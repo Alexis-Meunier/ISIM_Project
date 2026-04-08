@@ -2,23 +2,24 @@
 
 #include <fstream>
 #include <sstream>
+#include <cmath>
 
 Mesh Mesh::rectangle(
-    const Point4& bot_left,  const Point4& bot_right,
-    const Point4& top_right, const Point4& top_left,
+    const Point4& top_left,  const Point4& top_right,
+    const Point4& bot_right, const Point4& bot_left,
     const std::shared_ptr<TextureMaterial>& texture)
 {
     Mesh m;
 
-    Triangle *t1 = new Triangle(bot_left, bot_right, top_left, texture);
-    t1->uv1 = {0.f, 0.f};
-    t1->uv2 = {1.f, 0.f};
-    t1->uv3 = {0.f, 1.f};
+    Triangle *t1 = new Triangle(top_left, top_right, bot_left, texture);
+    t1->uv1 = {0.f, 1.f};
+    t1->uv2 = {1.f, 1.f};
+    t1->uv3 = {0.f, 0.f};
 
-    Triangle *t2 = new Triangle(bot_right, top_right, top_left, texture);
-    t2->uv1 = {1.f, 0.f};
-    t2->uv2 = {1.f, 1.f};
-    t2->uv3 = {0.f, 1.f};
+    Triangle *t2 = new Triangle(top_right, bot_right, bot_left, texture);
+    t2->uv1 = {1.f, 1.f};
+    t2->uv2 = {1.f, 0.f};
+    t2->uv3 = {0.f, 0.f};
 
     m.triangles.push_back(t1);
     m.triangles.push_back(t2);
@@ -80,8 +81,9 @@ Point4 Mesh::get_centroid() const
 
 Mesh Mesh::from_obj(const std::string& path,
                         const std::shared_ptr<TextureMaterial>& texture,
-                        const Vector4& offset, const float& scale)
+                        const Point4& offset, const float& scale, const RotationCoords& rotation)
 {
+    auto rad = M_PI / 180.0f;
     Mesh m;
     std::vector<Point4>            positions;
     std::vector<std::pair<float, float>> uvs;
@@ -98,7 +100,15 @@ Mesh Mesh::from_obj(const std::string& path,
         if (token == "v") {
             float x, y, z;
             ss >> x >> y >> z;
-            positions.push_back(Point4(x * scale + offset.x, y * scale + offset.y, z * scale + offset.z));
+            auto rotated = Point4(x * scale, y * scale, z * scale);
+            if (rotation.x < 1e-3)
+                rotated.rotateX(rotation.x * rad);
+            if (rotation.y < 1e-3)
+                rotated.rotateY(rotation.y * rad);
+            if (rotation.z < 1e-3)
+                rotated.rotateZ(rotation.z * rad);
+
+            positions.push_back(rotated + offset);
         }
         else if (token == "vt") {
             float u, v;

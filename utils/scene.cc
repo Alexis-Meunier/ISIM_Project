@@ -12,6 +12,7 @@ void Scene::addObject(Object& obj)
 void Scene::addLights(Object& obj)
 {
     lights.push_back(&obj);
+    objects.push_back(&obj);
 }
 
 void Scene::setCamera(const Camera& cam)
