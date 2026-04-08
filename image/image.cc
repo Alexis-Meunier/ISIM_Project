@@ -7,9 +7,8 @@ PPM::PPM(const int& height, const int& width)
     this->maxval = 255;
     this->height = height;
     this->width = width;
-    this->pixels.reserve(height * width);
+    this->pixels.resize(height * width);
 }
-
 
 PPM PPM::load_image(const std::string& filename)
 {
@@ -29,7 +28,7 @@ PPM PPM::load_image(const std::string& filename)
     is >> img.maxval;
 
     img.pixels.resize(img.width * img.height);
-    char *width = new char[img.width * img.height * 3];
+    char* width = new char[img.width * img.height * 3];
 
     is.get();
     is.read(width, img.width * img.height * 3);
@@ -60,7 +59,6 @@ PPM PPM::load_image(const std::string& filename)
     return img;
 }
 
-
 void PPM::save_image(const std::string& filename)
 {
     std::ofstream os(filename, std::ios::binary);
@@ -75,7 +73,7 @@ void PPM::save_image(const std::string& filename)
     {
         for (auto j = 0; j < width; j++)
         {
-            Color *p = this->pixels[i * width + j];
+            Color* p = this->pixels[i * width + j];
             os << p->colors[0] << p->colors[1] << p->colors[2];
         }
     }

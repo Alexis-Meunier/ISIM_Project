@@ -2,22 +2,22 @@
 
 #include "point4.hh"
 
-inline Point4 Point4::operator+(const Point4& p)
+const inline Point4 Point4::operator+(const Point4& p) const
 {
     return Point4(x + p.x, y + p.y, z + p.z, 1);
 }
 
-inline Point4 Point4::operator-(const Point4& p)
+const inline Point4 Point4::operator-(const Point4& p) const
 {
     return Point4(x - p.x, y - p.y, z - p.z, 1);
 }
 
-inline Point4 Point4::operator*(const double& scalar)
+const inline Point4 Point4::operator*(const double& scalar) const
 {
     return Point4(x * scalar, y * scalar, z * scalar, 1);
 }
 
-inline float Point4::operator*(const Point4& p)
+const inline float Point4::operator*(const Point4& p) const
 {
     return x * p.x + y * p.y + z * p.z;
 }
@@ -28,34 +28,36 @@ inline std::ostream& Point4::operator<<(std::ostream& os)
     return os;
 }
 
-inline float& Point4::operator[](size_t idx) {
-    switch(idx)
+inline float& Point4::operator[](size_t idx)
+{
+    switch (idx)
     {
-        case 0:
-            return x;
-        case 1:
-            return y;
-        case 2:
-            return z;
-        case 3:
-            return i;
-        default:
-            throw std::out_of_range("Point4 indexing gone wrong");
+    case 0:
+        return x;
+    case 1:
+        return y;
+    case 2:
+        return z;
+    case 3:
+        return i;
+    default:
+        throw std::out_of_range("Point4 indexing gone wrong");
     }
 }
 
-inline float Point4::operator[](size_t idx) const {
-    switch(idx)
+inline float Point4::operator[](size_t idx) const
+{
+    switch (idx)
     {
-        case 0:
-            return x;
-        case 1:
-            return y;
-        case 2:
-            return z;
-        case 3:
-            return i;
-        default:
-            throw std::out_of_range("Point4 indexing gone wrong");
+    case 0:
+        return x;
+    case 1:
+        return y;
+    case 2:
+        return z;
+    case 3:
+        return i;
+    default:
+        throw std::out_of_range("Point4 indexing gone wrong");
     }
 }

@@ -2,40 +2,13 @@
 
 #include "utils/vector4.hh"
 
-Color cast_ray(const Point4& hit, Object* obj, Scene& scene, int depth,
-               float previous_eta = 1.0f);
+Color cast_ray(const Point4& hit, Vector4& dir, Object* obj, Scene& scene,
+               int depth, float previous_eta = 1.0f);
 
 // Angle returned in radians [0, Pi/2]
 float get_angle_margin(const TextureInfo& text)
 {
-    return (1.f - text.ks) * (M_PI / 2.f);
-}
-
-Vector4 get_outgoing_ray(float angle_margin, Vector4& normal,
-                         Vector4& reflected)
-{
-    float rand_angle = (static_cast<float>(rand()) / RAND_MAX) * angle_margin;
-    float rand_dir = (static_cast<float>(rand()) / RAND_MAX) * 2.f * M_PI;
-
-    auto diff_from_reflected = Vector4{ 0, 1, 0 };
-    if (dot_product(normal, reflected) == 1)
-    {
-        diff_from_reflected = Vector4{ 1, 0, 0 };
-    }
-
-    auto u = cross_product(reflected, diff_from_reflected);
-    auto v = cross_product(reflected, u);
-
-    auto new_vec = reflected * std::cos(rand_angle)
-        + u * (std::sin(rand_angle) * std::cos(rand_dir))
-        + v * (std::sin(rand_angle) * std::sin(rand_dir));
-
-    if (dot_product(normal, new_vec) < 0)
-    {
-        return get_outgoing_ray(angle_margin, normal, reflected);
-    }
-
-    return new_vec;
+    return text.kd * (M_PI / 2.f);
 }
 
 Color compute_direct_rays(Scene& scene, const Point4& hit, Vector4& normal,
@@ -71,7 +44,7 @@ Color compute_direct_rays(Scene& scene, const Point4& hit, Vector4& normal,
         // Shadow check
         auto [sh, so] =
             bvh_intersect(scene.bvh_pool, scene.objects, offset_hit, to_light);
-        if (sh && so != light_obj)
+        if (sh && so != light_obj && so->texture->info->kr == 0)
         {
             float to_blocker = distance(offset_hit, *sh);
             if (to_blocker < dist_to_light - 0.01f)
@@ -89,6 +62,33 @@ Color compute_direct_rays(Scene& scene, const Point4& hit, Vector4& normal,
     return Color(direct_r * 255, direct_g * 255, direct_b * 255);
 }
 
+Vector4 get_outgoing_ray(float angle_margin, Vector4& normal,
+                         Vector4& reflected)
+{
+    float rand_angle = (static_cast<float>(rand()) / RAND_MAX) * angle_margin;
+    float rand_dir = (static_cast<float>(rand()) / RAND_MAX) * 2.f * M_PI;
+
+    auto diff_from_reflected = Vector4{ 0, 1, 0 };
+    if (dot_product(normal, reflected) == 1)
+    {
+        diff_from_reflected = Vector4{ 1, 0, 0 };
+    }
+
+    auto u = cross_product(reflected, diff_from_reflected);
+    auto v = cross_product(reflected, u);
+
+    auto new_vec = reflected * std::cos(rand_angle)
+        + u * (std::sin(rand_angle) * std::cos(rand_dir))
+        + v * (std::sin(rand_angle) * std::sin(rand_dir));
+
+    if (dot_product(normal, new_vec) < 0)
+    {
+        return get_outgoing_ray(angle_margin, normal, reflected);
+    }
+
+    return new_vec;
+}
+
 Vector4 get_ingoing_ray(Vector4& dir, Vector4& normal, float eta)
 {
     float cos_dir_norm =
@@ -97,60 +97,97 @@ Vector4 get_ingoing_ray(Vector4& dir, Vector4& normal, float eta)
     if (sin_squared_ingoing > 1)
         return Vector4(); // error, total internal refraction
     float cos_ingoing = std::sqrt(1 - sin_squared_ingoing);
-    return dir * eta + normal * (eta * cos_dir_norm - cos_ingoing);
+
+    auto ingoing_ray = dir * eta + normal * (eta * cos_dir_norm - cos_ingoing);
+    std::cout << "norm = " << normal << "Ingoing = " << ingoing_ray
+              << std::endl;
+    return ingoing_ray;
 }
 
 Color compute_indirect_rays(Scene& scene, Object* obj, Vector4& normal,
-                            const Point4& hit, Point4& offset_hit,
-                            TextureInfo* info, int depth,
-                            float previous_eta = 1)
+                            const Point4& hit, Vector4& dir, TextureInfo* info,
+                            int depth, float previous_eta = 1)
 {
     // Ready needed variables such as angle with BRDF
     float ar = info->color->colors[RED] / 255.f;
     float ag = info->color->colors[GREEN] / 255.f;
     float ab = info->color->colors[BLUE] / 255.f;
 
-    auto V = Vector4(scene.camera.center - hit);
-    V.normalize();
+    dir.normalize();
+    auto for_ref = dir * -1;
+    bool one_refracted = false;
 
-    auto R = normal * 2.0f * dot_product(normal, V) - V;
+    float eta;
+    if (dot_product(dir, normal) > 0)
+    {
+        if (info->eta == 0)
+            eta = previous_eta;
+        else
+            eta = previous_eta / info->eta;
+        normal = normal * -1;
+    }
+    else if (info->eta != 0)
+        eta = info->eta / previous_eta;
+    else
+        eta = previous_eta;
+
+    auto R = normal * 2.0f * dot_product(normal, for_ref) - for_ref;
     R.normalize();
 
     float indirect_r = 0, indirect_g = 0, indirect_b = 0;
     float margin_angle = get_angle_margin(*info);
     int nb_valid = 0;
-    float eta = info->eta != 0
-        ? previous_eta / info->eta
-        : previous_eta; // divide refraction index of where we are coming from
-                        // where we are going
-
+    // divide refraction index of where we are coming from
+    // where we are going
+    float next_eta =
+        (info->eta == 0 || dot_product(dir, normal) > 0) ? 1.0f : info->eta;
     // Send rays to get indirect lighting
+    float rd = (static_cast<float>(rand()) / RAND_MAX);
     for (int i = 0; i < NB_RAYS_REFLECTED; i++)
     {
         Vector4 new_ray;
-        if ((static_cast<float>(rand()) / RAND_MAX) > (1 - info->kr))
+        if (rd > (1 - info->kr))
         {
-            new_ray = get_ingoing_ray(V, normal, eta);
+            if (one_refracted)
+                continue;
+            std::cout << eta << std::endl;
+            new_ray = get_ingoing_ray(dir, normal, eta);
+            one_refracted = true;
+            /*if (dir.x != new_ray.x || dir.y != new_ray.y || dir.z !=
+            new_ray.z)
+            {
+                std::cout << "dir = " << dir;
+                std::cout << "new ray = " << new_ray << std::endl;
+            }*/
         }
         else
         {
             new_ray = get_outgoing_ray(margin_angle, normal, R);
+            // if (info->kr > 0)
+            // std::cout << "rd = " << rd << " kr = " << 1 - info->kr
+            //          << std::endl;
         }
+
+        Point4 offset_hit(hit.x + new_ray.x * 0.001f,
+                          hit.y + new_ray.y * 0.001f,
+                          hit.z + new_ray.z * 0.001f);
 
         auto [next_hit, next_obj] =
             bvh_intersect(scene.bvh_pool, scene.objects, offset_hit, new_ray);
         // Hit nothing
-        if (!next_hit || next_obj == obj)
+        if (!next_hit || distance(*next_hit, offset_hit) < 0.001f)
             continue;
 
         float cos_theta = std::max(0.f, dot_product(normal, new_ray));
         float diffuse_w = info->kd * cos_theta;
-        float specular_w = info->ks; // specular doesn't attenuate by cos_theta
+        float specular_w = info->ks; // specular doesn't attenuated by cos_theta
+        float refracted_w = info->kr;
 
-        float w = diffuse_w + specular_w;
+        float w = diffuse_w + specular_w + refracted_w;
 
         // Send ray towards the object
-        Color incoming = cast_ray(*next_hit, next_obj, scene, depth + 1, eta);
+        Color incoming =
+            cast_ray(*next_hit, dir, next_obj, scene, depth + 1, next_eta);
         indirect_r += (incoming.colors[RED] / 255.f) * w * ar;
         indirect_g += (incoming.colors[GREEN] / 255.f) * w * ag;
         indirect_b += (incoming.colors[BLUE] / 255.f) * w * ab;
@@ -181,8 +218,8 @@ Color compute_light_rays(LightTexture* light_tex, const Point4& hit, int depth)
     return Color(0, 0, 0);
 }
 
-Color cast_ray(const Point4& hit, Object* obj, Scene& scene, int depth,
-               float previous_eta)
+Color cast_ray(const Point4& hit, Vector4& dir, Object* obj, Scene& scene,
+               int depth, float previous_eta)
 {
     if (depth == MAX_DEPTH)
         return Color(0, 0, 0);
@@ -209,8 +246,9 @@ Color cast_ray(const Point4& hit, Object* obj, Scene& scene, int depth,
     float direct_b = direct_c.colors[BLUE] / 255.f;
 
     // Compute indirect colors (recursion)
-    auto indirect_c = compute_indirect_rays(scene, obj, normal, hit, offset_hit,
-                                            info, depth, previous_eta);
+    auto indirect_c = compute_indirect_rays(scene, obj, normal, hit, dir, info,
+                                            depth, previous_eta);
+
     float indirect_r = indirect_c.colors[RED] / 255.f;
     float indirect_g = indirect_c.colors[GREEN] / 255.f;
     float indirect_b = indirect_c.colors[BLUE] / 255.f;
@@ -272,7 +310,7 @@ PPM computeScene(Scene& scene, const int& image_h, const int& image_w)
                     continue;
 
                 // Compute its color and add it to the pixel color
-                auto color = cast_ray(*intersection, obj, scene, 0);
+                auto color = cast_ray(*intersection, ray, obj, scene, 0);
                 red += color.colors[RED];
                 green += color.colors[GREEN];
                 blue += color.colors[BLUE];
@@ -307,7 +345,7 @@ int main(int argc, char** argv)
     light.kd = 0.5f;
     light.ks = 0.2f;
     light.color = new Color(255, 255, 255);
-    light.lightPower = 0.8f;
+    light.lightPower = 1.0f;
 
     auto uniform_flat_red = std::make_shared<UniformTexture>(Color(255, 0, 0));
     auto uniform_flat_blue = std::make_shared<UniformTexture>(Color(0, 0, 255));
@@ -318,64 +356,26 @@ int main(int argc, char** argv)
     auto uniform_mat_red = std::make_shared<UniformTexture>(&mat_red);
     auto uniform_something = std::make_shared<UniformTexture>(&something_text);
     auto light_texture = std::make_shared<LightTexture>(&light);
+    auto new_text =
+        std::make_shared<UniformTexture>(Color{ 255, 255, 255 }, 0, 0, 1, 1.5);
+    auto new_text_triangle =
+        std::make_shared<UniformTexture>(Color{ 255, 255, 0 });
+    auto new_text_triangle1 =
+        std::make_shared<UniformTexture>(Color{ 0, 255, 100 });
 
-    Sphere ball1(uniform_mat_red, Point4(5, -5, 15), 4);
-    Sphere ball2(uniform_something, Point4(-5, -5, 15), 4);
-    Sphere ball3(uniform_flat_random, Point4(0, 0, 20), 4);
-    Sphere ball4(uniform_a, Point4(0, 10, 25), 3);
-    Sphere light_ball(light_texture, Point4(0, 20, 10), 4);
+    Sphere ball1(new_text, Point4(0, -4, 9), 4);
+    Sphere ball2(uniform_mat_red, Point4(-10, 0, 10), 2);
+    Sphere light_ball(light_texture, Point4(0, 15, 0), 4);
+    Sphere light_ball1(light_texture, Point4(-20, 10, 10), 4);
 
-    // Triangle triangle1 = Triangle(Point4(1, 0, 8), Point4(0, 1 *
-    // std::sqrt(3), 8), Point4(-1, 0, 8), uniform_flat_random); Triangle
-    // triangle2 = Triangle(Point4(14, 5, 6), Point4(6, 7, 8), Point4(20, -1,
-    // 4), uniform_mat_red);
-    // Triangle triangle11 = Triangle(Point4(-10, -15, 10), Point4(-5, -15, 10),
-    //                                Point4(-10, -5, 10), uniform_mat_red);
-    // Triangle triangle12 = Triangle(Point4(-5, -15, 10), Point4(-5, -5, 10),
-    //                                Point4(-10, -5, 10), uniform_mat_red);
-    // Triangle triangle13 = Triangle(Point4(-5, -15, 10), Point4(-5, -15, 15),
-    //                                Point4(-5, -5, 10), uniform_flat_random);
-    // Triangle triangle14 = Triangle(Point4(-5, -15, 15), Point4(-5, -5, 15),
-    //                                Point4(-5, -5, 10), uniform_flat_random);
-    // Triangle triangle15 = Triangle(Point4(-10, -5, 10), Point4(-5, -5, 10),
-    //                                Point4(-10, -5, 15), uniform_flat_blue);
-    // Triangle triangle16 = Triangle(Point4(-5, -5, 10), Point4(-5, -5, 15),
-    //                                Point4(-10, -5, 15), uniform_flat_blue);
+    Triangle triangle1 = Triangle(Point4(-200, -200, 30), Point4(200, -200, 30),
+                                  Point4(0, 200, 30), new_text_triangle);
+    Triangle triangle2 = Triangle(Point4(0, -10, -100), Point4(200, -10, 200),
+                                  Point4(-200, -10, 200), new_text_triangle1);
+    Triangle triangle3 =
+        Triangle(Point4(-200, -200, -30), Point4(200, -200, -30),
+                 Point4(0, 200, -30), new_text_triangle);
 
-    // Triangle triangle21 = Triangle(Point4(-10, 5, 10), Point4(-5, 5, 10),
-    //                                Point4(-10, 15, 10), uniform_mat_red);
-    // Triangle triangle22 = Triangle(Point4(-5, 5, 10), Point4(-5, 15, 10),
-    //                                Point4(-10, 15, 10), uniform_mat_red);
-    // Triangle triangle23 = Triangle(Point4(-5, 5, 10), Point4(-5, 5, 15),
-    //                                Point4(-5, 15, 10), uniform_flat_random);
-    // Triangle triangle24 = Triangle(Point4(-5, 5, 15), Point4(-5, 15, 15),
-    //                                Point4(-5, 15, 10), uniform_flat_random);
-    // Triangle triangle25 = Triangle(Point4(-10, 5, 10), Point4(-10, 5, 15),
-    //                                Point4(-5, 5, 10), uniform_flat_blue);
-    // Triangle triangle26 = Triangle(Point4(-10, 5, 15), Point4(-5, 5, 15),
-    //                                Point4(-5, 5, 10), uniform_flat_blue);
-
-    // Triangle triangle31 = Triangle(Point4(5, -15, 10), Point4(10, -15, 10),
-    //                                Point4(5, -5, 10), uniform_mat_red);
-    // Triangle triangle32 = Triangle(Point4(10, -15, 10), Point4(10, -5, 10),
-    //                                Point4(5, -5, 10), uniform_mat_red);
-    // Triangle triangle33 = Triangle(Point4(5, -15, 10), Point4(5, -5, 10),
-    //                                Point4(5, -15, 15), uniform_flat_random);
-    // Triangle triangle34 = Triangle(Point4(5, -15, 15), Point4(5, -5, 10),
-    //                                Point4(5, -5, 15), uniform_flat_random);
-    // Triangle triangle35 = Triangle(Point4(5, -5, 10), Point4(10, -5, 10),
-    //                                Point4(5, -5, 15), uniform_flat_blue);
-    // Triangle triangle36 = Triangle(Point4(10, -5, 10), Point4(10, -5, 15),
-    //                                Point4(5, -5, 15), uniform_flat_blue);
-
-    // Triangle triangle41 = Triangle(Point4(-3, 7, 10), Point4(15, 7, 10),
-    //                                Point4(-3, 13, 10), uniform_mat_red);
-    // Triangle triangle42 = Triangle(Point4(15, 7, 10), Point4(15, 13, 10),
-    //                                Point4(-3, 13, 10), uniform_mat_red);
-    // Triangle triangle45 = Triangle(Point4(-3, 7, 10), Point4(-3, 7, 15),
-    //                                Point4(15, 7, 10), uniform_flat_blue);
-    // Triangle triangle46 = Triangle(Point4(-3, 7, 15), Point4(15, 7, 15),
-    //                                Point4(15, 7, 10), uniform_flat_blue);
     // Complex *obj = new Complex(vec);
 
     // PointLight top_light(Point4(0, 0, 5), 0.8);
@@ -388,35 +388,9 @@ int main(int argc, char** argv)
     Scene scene;
     scene.addObject(ball1);
     scene.addObject(ball2);
-    scene.addObject(ball3);
-    scene.addObject(ball4);
-    // scene.addObject(triangle11);
-    // scene.addObject(triangle12);
-    // scene.addObject(triangle13);
-    // scene.addObject(triangle14);
-    // scene.addObject(triangle15);
-    // scene.addObject(triangle16);
-
-    // scene.addObject(triangle21);
-    // scene.addObject(triangle22);
-    // scene.addObject(triangle23);
-    // scene.addObject(triangle24);
-    // scene.addObject(triangle25);
-    // scene.addObject(triangle26);
-
-    // scene.addObject(triangle31);
-    // scene.addObject(triangle32);
-    // scene.addObject(triangle33);
-    // scene.addObject(triangle34);
-    // scene.addObject(triangle35);
-    // scene.addObject(triangle36);
-
-    // scene.addObject(triangle41);
-    // scene.addObject(triangle42);
-    // scene.addObject(triangle45);
-    // scene.addObject(triangle46);
-    // scene.addObject(light_ball);
-    // scene.addLight(circle_light);
+    scene.addObject(triangle1);
+    scene.addObject(triangle2);
+    scene.addObject(triangle3);
     scene.addObject(light_ball);
     scene.addLights(light_ball);
     scene.setCamera(camera);
@@ -425,7 +399,7 @@ int main(int argc, char** argv)
               << std::endl;
 
     time_t start = std::time(nullptr);
-    auto img = computeScene(scene, 1080, 1080);
+    auto img = computeScene(scene, 108, 108);
     time_t end = std::time(nullptr);
     std::cout << "\nTook: " << end - start << "s" << std::endl;
 
