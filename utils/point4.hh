@@ -19,6 +19,7 @@ class Point4
         Point4 operator-(const Point4& p);
         Point4 operator*(const double& scalar); // Translation
         float operator*(const Point4& p); // Dot product
+        Point4& operator=(const Point4& v);
 
         // Debugging
         std::ostream& operator<<(std::ostream& os);

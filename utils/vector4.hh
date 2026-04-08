@@ -21,6 +21,7 @@ class Vector4
         Vector4 operator-();
         Vector4 operator*(const double& scalar); // Translation
         float operator*(const Vector4& p); // Dot product
+        Vector4& operator=(const Vector4& v);
 
         // Debugging
         std::ostream& operator<<(std::ostream& os);

@@ -51,7 +51,7 @@ PPM PPM::load_image(const std::string& filename)
             uint8_t b = width[index + 2];
             std::cout << "loading b: " << int(b) << std::endl;
 
-            img.pixels[i * img.width + j] = new Color(r, g, b);
+            img.pixels[i * img.width + j] = Color(r, g, b);
             std::cout << "loading pixel: " << i * img.width + j << std::endl;
         }
         std::cout << "finished row" << std::endl << std::endl;
@@ -75,8 +75,8 @@ void PPM::save_image(const std::string& filename)
     {
         for (auto j = 0; j < width; j++)
         {
-            Color *p = this->pixels[i * width + j];
-            os << p->colors[0] << p->colors[1] << p->colors[2];
+            Color p = this->pixels[i * width + j];
+            os << p.colors[0] << p.colors[1] << p.colors[2];
         }
     }
 }

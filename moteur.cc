@@ -23,16 +23,25 @@ Vector4 get_outgoing_ray(float angle_margin, Vector4& normal, Vector4& reflected
     auto u = cross_product(reflected, diff_from_reflected);
     auto v = cross_product(reflected, u);
 
-    auto new_vec = reflected * std::cos(rand_angle)
-        + u * (std::sin(rand_angle) * std::cos(rand_dir))
-        + v * (std::sin(rand_angle) * std::sin(rand_dir));
+    // auto new_vec = reflected * std::cos(rand_angle)
+    //     + u * (std::sin(rand_angle) * std::cos(rand_dir))
+    //     + v * (std::sin(rand_angle) * std::sin(rand_dir));
 
-    if (dot_product(normal, new_vec) < 0)
-    {
-        return get_outgoing_ray(angle_margin, normal, reflected);
+    // if (dot_product(normal, new_vec) < 0)
+    // {
+    //     return get_outgoing_ray(angle_margin, normal, reflected);
+    // }
+
+    while (true) {
+        auto new_vec = reflected * std::cos(rand_angle)
+                    + u * (std::sin(rand_angle) * std::cos(rand_dir))
+                    + v * (std::sin(rand_angle) * std::sin(rand_dir));
+
+        if (dot_product(normal, new_vec) >= 0)
+            return new_vec;
     }
 
-    return new_vec;
+    return Vector4();
 }
 
 Color compute_direct_rays(Scene& scene, const Point4& hit, Vector4& normal, Point4& offset_hit, TextureInfo *info)
@@ -114,7 +123,7 @@ Color compute_indirect_rays(Scene& scene, Object *obj, Vector4& normal, const Po
         float w = diffuse_w + specular_w;
 
         // Send ray towards the object
-        Color incoming = cast_ray(*next_hit, R, next_obj, scene, depth + 1);
+        Color incoming = cast_ray(*next_hit, outgoing, next_obj, scene, depth + 1);
         indirect_r += (incoming.colors[RED] / 255.f) * w * ar;
         indirect_g += (incoming.colors[GREEN] / 255.f) * w * ag;
         indirect_b += (incoming.colors[BLUE] / 255.f) * w * ab;
@@ -248,7 +257,7 @@ PPM computeScene(Scene& scene, const int& image_h, const int& image_w)
 
             // Average values of each ray
             img.pixels[i * image_w + j] =
-                new Color(red / NB_RAYS, green / NB_RAYS, blue / NB_RAYS);
+                Color(red / NB_RAYS, green / NB_RAYS, blue / NB_RAYS);
             printProgressBar(i * image_w + j, image_w * image_h);
         }
     }
@@ -267,14 +276,14 @@ int main(int argc, char** argv)
 
     time_t load_start = std::time(nullptr);
 
+    // TextureInfo
+    // flat_random{ kd: 0.4, ks: 0.2, ka: 0.f, ns: 0.5, color: new Color(68, 164, 112), lightPower: 0.f };
+    // TextureInfo
+    // a{ kd: 0.2f, ks: 0.8f, ka: 0.f, ns: 0.9, color: new Color(255, 255, 0), lightPower: 0.f };
     TextureInfo
-    flat_random{ kd: 0.4, ks: 0.2, ns: 0.5, color: new Color(68, 164, 112) };
-    TextureInfo
-    a{ kd: 0.2f, ks: 0.8f, ns: 0.9, color: new Color(255, 255, 0) };
-    TextureInfo
-    mat_red{ kd: 0.8f, ks: 0.2, ns: 0.9, color: new Color(255, 0, 0) };
-    TextureInfo
-    something_text{ kd: 0.3, ks: 0.3, ns: 0.9, color: new Color(0, 255, 255) };
+    mat_red{ kd: 0.8f, ks: 0.2, ka: 0.f, ns: 0.9, color: new Color(255, 0, 0), lightPower: 0.f };
+    // TextureInfo
+    // something_text{ kd: 0.3, ks: 0.3, ka: 0.f, ns: 0.9, color: new Color(0, 255, 255), lightPower: 0.f };
     LightInfo light;
     light.kd = 0.5f;
     light.ks = 0.2f;

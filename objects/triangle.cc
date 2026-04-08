@@ -5,9 +5,16 @@
 #include "../texture/UniformTexture.hh"
 #include "../texture/ImageTexture.hh"
 
-inline Vector4 cross_product(const Vector4& v1, const Vector4& v2)
+AABB Triangle::compute_my_bounds()
 {
-    return Vector4(v1.y * v2.z - v1.z * v2.y, -(v1.x * v2.z - v1.z * v2.x), v1.x * v2.y - v1.y * v2.x);
+    return {
+        Point4(std::min({p1.x, p2.x, p3.x}),
+               std::min({p1.y, p2.y, p3.y}),
+               std::min({p1.z, p2.z, p3.z})),
+        Point4(std::max({p1.x, p2.x, p3.x}),
+               std::max({p1.y, p2.y, p3.y}),
+               std::max({p1.z, p2.z, p3.z}))
+    };
 }
 
 Triangle::Triangle(const Point4& p1, const Point4& p2, const Point4& p3)
@@ -22,18 +29,6 @@ Triangle::Triangle(const Point4& p1, const Point4& p2, const Point4& p3)
 
     this->normal = cross_product(CB, CA);
     cached_bounds = compute_my_bounds();
-}
-
-AABB Triangle::compute_my_bounds()
-{
-    return {
-        Point4(std::min({p1.x, p2.x, p3.x}),
-               std::min({p1.y, p2.y, p3.y}),
-               std::min({p1.z, p2.z, p3.z})),
-        Point4(std::max({p1.x, p2.x, p3.x}),
-               std::max({p1.y, p2.y, p3.y}),
-               std::max({p1.z, p2.z, p3.z}))
-    };
 }
 
 Triangle::Triangle(const Point4& p1, const Point4& p2, const Point4& p3, const std::shared_ptr<TextureMaterial>& info)
@@ -64,6 +59,7 @@ Triangle::Triangle(const std::shared_ptr<TextureMaterial>& info)
     cached_bounds = compute_my_bounds();
 }
 
+// TODO: Faster algo?
 std::optional<Point4> Triangle::intersect(const Point4& start, const Vector4& norm)
 {
     auto OA = Vector4(p1.x - start.x, p1.y - start.y, p1.z - start.z);
@@ -127,21 +123,9 @@ AABB Triangle::get_bounds() const {
     return cached_bounds;
 }
 
-// Return random centroid in triangle
+// Return centroid in triangle
 Point4 Triangle::get_centroid() const
 {
-    // float u = static_cast<float>(rand()) / RAND_MAX;
-    // float v = static_cast<float>(rand()) / RAND_MAX;
-    // if (u + v > 1.f)
-    // {
-    //     u = 1.f - u; v = 1.f - v;
-    // }
-
-    // return Point4(
-    //     (1-u-v)*p1.x + u*p2.x + v*p3.x,
-    //     (1-u-v)*p1.y + u*p2.y + v*p3.y,
-    //     (1-u-v)*p1.z + u*p2.z + v*p3.z
-    // );
     return Point4(
         (p1.x + p2.x + p3.x) / 3.f,
         (p1.y + p2.y + p3.y) / 3.f,

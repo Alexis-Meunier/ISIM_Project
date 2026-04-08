@@ -15,6 +15,7 @@ ImageTexture::ImageTexture(const std::string& filepath, float kd, float ks,
         throw std::runtime_error("ImageTexture: failed to load " + filepath);
 
     channels = 3;
+    // TODO: Handle transparent pixels
     pixels.assign(data, data + width * height * 3);
     stbi_image_free(data);
 
@@ -64,7 +65,6 @@ TextureInfo* ImageTexture::get_elements(Point4 position)
 TextureInfo* ImageTexture::get_elements_sphere(Point4 hit_point, Point4 center, float radius)
 {
     float nx = (hit_point.x - center.x) / radius;
-    float ny = (hit_point.y - center.y) / radius;
     float nz = (hit_point.z - center.z) / radius;
 
     float phi = std::atan2(nz, nx);;

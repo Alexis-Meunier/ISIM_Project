@@ -68,6 +68,7 @@ AABB Mesh::get_bounds() const
     return cached_bounds;
 }
 
+// TODO: Heavy computation for meshes (Currently not used so fine)
 Point4 Mesh::get_centroid() const
 {
     float x = 0, y = 0, z = 0;
@@ -75,10 +76,12 @@ Point4 Mesh::get_centroid() const
         auto c = t->get_centroid();
         x += c.x; y += c.y; z += c.z;
     }
+
     float n = (float)triangles.size();
     return Point4(x/n, y/n, z/n);
 }
 
+// TODO: Optimize
 Mesh Mesh::from_obj(const std::string& path,
                         const std::shared_ptr<TextureMaterial>& texture,
                         const Point4& offset, const float& scale, const RotationCoords& rotation)
@@ -101,12 +104,18 @@ Mesh Mesh::from_obj(const std::string& path,
             float x, y, z;
             ss >> x >> y >> z;
             auto rotated = Point4(x * scale, y * scale, z * scale);
-            if (rotation.x < 1e-3)
+            if (std::abs(rotation.x) > 1e-3)
+            {
                 rotated.rotateX(rotation.x * rad);
-            if (rotation.y < 1e-3)
+            }
+            if (std::abs(rotation.y) > 1e-3)
+            {
                 rotated.rotateY(rotation.y * rad);
-            if (rotation.z < 1e-3)
+            }
+            if (std::abs(rotation.z) > 1e-3)
+            {
                 rotated.rotateZ(rotation.z * rad);
+            }
 
             positions.push_back(rotated + offset);
         }
@@ -119,14 +128,26 @@ Mesh Mesh::from_obj(const std::string& path,
             std::vector<int> pi, ui;
             std::string part;
             while (ss >> part) {
-                auto slash = part.find('/');
-                pi.push_back(std::stoi(part.substr(0, slash)) - 1);
-                if (slash != std::string::npos)
-                    ui.push_back(std::stoi(part.substr(slash + 1)) - 1);
+                auto slash1 = part.find('/');
+                pi.push_back(std::stoi(part.substr(0, slash1)) - 1);
+                
+                if (slash1 != std::string::npos) {
+                    auto slash2 = part.find('/', slash1 + 1);
+                    // handles v/vt and v/vt/vn and v//vn
+                    std::string vt_str = part.substr(slash1 + 1, slash2 - slash1 - 1);
+                    if (!vt_str.empty())
+                        ui.push_back(std::stoi(vt_str) - 1);
+                }
             }
+
             for (int i = 1; i + 1 < (int)pi.size(); i++) {
+                if (pi[0] >= (int)positions.size() || pi[i] >= (int)positions.size() || pi[i+1] >= (int)positions.size())
+                    continue;
                 Triangle *t = new Triangle(positions[pi[0]], positions[pi[i]], positions[pi[i+1]], texture);
-                if (!uvs.empty() && (int)ui.size() > i + 1) { // guard both conditions
+                
+                // Only assign UVs if we have a complete set
+                bool has_uvs = !uvs.empty() && (int)ui.size() == (int)pi.size();
+                if (has_uvs) {
                     t->uv1 = { uvs[ui[0]].first,   uvs[ui[0]].second };
                     t->uv2 = { uvs[ui[i]].first,   uvs[ui[i]].second };
                     t->uv3 = { uvs[ui[i+1]].first, uvs[ui[i+1]].second };
