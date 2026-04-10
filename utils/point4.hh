@@ -33,6 +33,7 @@ public:
     float i;
 };
 
+std::ostream& operator<<(std::ostream& out, const Point4& vect);
 /**
  * Returns the euclidian norm/Distance between two points
  *

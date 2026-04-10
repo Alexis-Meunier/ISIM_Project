@@ -92,15 +92,21 @@ Vector4 get_outgoing_ray(float angle_margin, Vector4& normal,
 Vector4 get_ingoing_ray(Vector4& dir, Vector4& normal, float eta)
 {
     float cos_dir_norm =
-        -dot_product(dir, normal); //- as the 2 point in different directions
+        std::abs(dir * normal); //- as the 2 point in different directions
     float sin_squared_ingoing = eta * eta * (1 - (cos_dir_norm * cos_dir_norm));
     if (sin_squared_ingoing > 1)
         return Vector4(); // error, total internal refraction
     float cos_ingoing = std::sqrt(1 - sin_squared_ingoing);
+    /*std::cout << "eta = " << eta << " cos = " << cos_dir_norm
+              << " calculus = " << eta * cos_dir_norm - cos_ingoing << std::endl
+              << " dir = " << dir << " norm = " << normal << std::endl;*/
 
     auto ingoing_ray = dir * eta + normal * (eta * cos_dir_norm - cos_ingoing);
-    std::cout << "norm = " << normal << "Ingoing = " << ingoing_ray
-              << std::endl;
+    ingoing_ray.normalize();
+    /*std::cout << "eta = " << eta
+              << "calc = " << eta * cos_dir_norm - cos_ingoing << std::endl
+              << " dir = " << dir << " norm = " << normal
+              << " ingoing = " << ingoing_ray << std::endl;*/
     return ingoing_ray;
 }
 
@@ -114,22 +120,27 @@ Color compute_indirect_rays(Scene& scene, Object* obj, Vector4& normal,
     float ab = info->color->colors[BLUE] / 255.f;
 
     dir.normalize();
+    normal.normalize();
     auto for_ref = dir * -1;
     bool one_refracted = false;
 
-    float eta;
-    if (dot_product(dir, normal) > 0)
+    float eta = previous_eta;
+    /*if (out_normal.x != 0)
     {
-        if (info->eta == 0)
-            eta = previous_eta;
-        else
+        std::cout << "dir = " << dir;
+        std::cout << "outnormal = " << out_normal;
+        std::cout << "obj type = " << typeid(*obj).name() << std::endl;
+    }*/
+    if ((dir * normal) > 0)
+    {
+        if (info->eta != 0)
             eta = previous_eta / info->eta;
         normal = normal * -1;
     }
     else if (info->eta != 0)
+    {
         eta = info->eta / previous_eta;
-    else
-        eta = previous_eta;
+    }
 
     auto R = normal * 2.0f * dot_product(normal, for_ref) - for_ref;
     R.normalize();
@@ -143,6 +154,7 @@ Color compute_indirect_rays(Scene& scene, Object* obj, Vector4& normal,
         (info->eta == 0 || dot_product(dir, normal) > 0) ? 1.0f : info->eta;
     // Send rays to get indirect lighting
     float rd = (static_cast<float>(rand()) / RAND_MAX);
+
     for (int i = 0; i < NB_RAYS_REFLECTED; i++)
     {
         Vector4 new_ray;
@@ -150,9 +162,23 @@ Color compute_indirect_rays(Scene& scene, Object* obj, Vector4& normal,
         {
             if (one_refracted)
                 continue;
-            std::cout << eta << std::endl;
+            /*hstd::cout << "hit = " << hit << std::endl;
+            std::cout << "center = " << dynamic_cast<Sphere*>(obj)->center;
+            std::cout << "dir = " << dir;
+            std::cout << "outnormal = " << out_normal;
+            std::cout << "dotoutnormal = " << (dir * out_normal) << std::endl;
+            std::cout << std::endl << std::endl << std::endl << std::endl;
+            std::cout << "rd = " << rd << std::endl;
+            std::cout << "1 - kr = " << 1 - info->kr << std::endl;
+            std::cout << "refracting = " << (rd > (1 - info->kr)) << std::endl;
+            std::cout << "eta = " << eta << std::endl;
+            std::cout << "next_eta = " << next_eta << std::endl;*/
             new_ray = get_ingoing_ray(dir, normal, eta);
-            one_refracted = true;
+            // std::cout << (dir * normal) << std::endl;
+            if (new_ray * new_ray == 0)
+                new_ray = get_outgoing_ray(margin_angle, normal, R);
+            else
+                one_refracted = true;
             /*if (dir.x != new_ray.x || dir.y != new_ray.y || dir.z !=
             new_ray.z)
             {
@@ -175,6 +201,15 @@ Color compute_indirect_rays(Scene& scene, Object* obj, Vector4& normal,
         auto [next_hit, next_obj] =
             bvh_intersect(scene.bvh_pool, scene.objects, offset_hit, new_ray);
         // Hit nothing
+
+        /*if (one_refracted)
+        {
+            std::cout << "next_hit found = " << (next_hit.has_value())
+                      << std::endl;
+            if (next_hit)
+                std::cout << "distance = " << distance(*next_hit, offset_hit)
+                          << std::endl;
+        }*/
         if (!next_hit || distance(*next_hit, offset_hit) < 0.001f)
             continue;
 
@@ -183,14 +218,32 @@ Color compute_indirect_rays(Scene& scene, Object* obj, Vector4& normal,
         float specular_w = info->ks; // specular doesn't attenuated by cos_theta
         float refracted_w = info->kr;
 
-        float w = diffuse_w + specular_w + refracted_w;
+        float w = diffuse_w + specular_w;
 
         // Send ray towards the object
         Color incoming =
-            cast_ray(*next_hit, dir, next_obj, scene, depth + 1, next_eta);
-        indirect_r += (incoming.colors[RED] / 255.f) * w * ar;
-        indirect_g += (incoming.colors[GREEN] / 255.f) * w * ag;
-        indirect_b += (incoming.colors[BLUE] / 255.f) * w * ab;
+            cast_ray(*next_hit, new_ray, next_obj, scene, depth + 1, next_eta);
+        /*if (one_refracted)
+        {
+            std::cout << "next_obj type = " << typeid(*next_obj).name()
+                      << std::endl;
+            std::cout << "incoming = " << incoming;
+            std::cout << "refracted_w = " << refracted_w << std::endl;
+            std::cout << "w = " << w << std::endl;
+            std::cout << "nb_valid = " << nb_valid << std::endl;
+        }*/
+        if (rd <= (1 - info->kr))
+        {
+            indirect_r += (incoming.colors[RED] / 255.f) * w * ar;
+            indirect_g += (incoming.colors[GREEN] / 255.f) * w * ag;
+            indirect_b += (incoming.colors[BLUE] / 255.f) * w * ab;
+        }
+        else
+        {
+            indirect_r += (incoming.colors[RED] / 255.f) * refracted_w;
+            indirect_g += (incoming.colors[GREEN] / 255.f) * refracted_w;
+            indirect_b += (incoming.colors[BLUE] / 255.f) * refracted_w;
+        }
         nb_valid++;
     }
 
@@ -356,15 +409,17 @@ int main(int argc, char** argv)
     auto uniform_mat_red = std::make_shared<UniformTexture>(&mat_red);
     auto uniform_something = std::make_shared<UniformTexture>(&something_text);
     auto light_texture = std::make_shared<LightTexture>(&light);
-    auto new_text =
-        std::make_shared<UniformTexture>(Color{ 255, 255, 255 }, 0, 0, 1, 1.5);
+    auto new_text = std::make_shared<UniformTexture>(Color{ 255, 255, 255 }, 0,
+                                                     0.5, 0.5, 1.5);
     auto new_text_triangle =
         std::make_shared<UniformTexture>(Color{ 255, 255, 0 });
     auto new_text_triangle1 =
         std::make_shared<UniformTexture>(Color{ 0, 255, 100 });
+    auto new_text_triangle2 =
+        std::make_shared<UniformTexture>(Color{ 255, 50, 150 });
 
     Sphere ball1(new_text, Point4(0, -4, 9), 4);
-    Sphere ball2(uniform_mat_red, Point4(-10, 0, 10), 2);
+    Sphere ball2(uniform_mat_red, Point4(-5, 0, 12), 2);
     Sphere light_ball(light_texture, Point4(0, 15, 0), 4);
     Sphere light_ball1(light_texture, Point4(-20, 10, 10), 4);
 
@@ -372,9 +427,8 @@ int main(int argc, char** argv)
                                   Point4(0, 200, 30), new_text_triangle);
     Triangle triangle2 = Triangle(Point4(0, -10, -100), Point4(200, -10, 200),
                                   Point4(-200, -10, 200), new_text_triangle1);
-    Triangle triangle3 =
-        Triangle(Point4(-200, -200, -30), Point4(200, -200, -30),
-                 Point4(0, 200, -30), new_text_triangle);
+    Triangle triangle3 = Triangle(Point4(-200, 20, 200), Point4(200, 20, 200),
+                                  Point4(0, 20, -100), new_text_triangle2);
 
     // Complex *obj = new Complex(vec);
 
@@ -399,7 +453,7 @@ int main(int argc, char** argv)
               << std::endl;
 
     time_t start = std::time(nullptr);
-    auto img = computeScene(scene, 108, 108);
+    auto img = computeScene(scene, 508, 508);
     time_t end = std::time(nullptr);
     std::cout << "\nTook: " << end - start << "s" << std::endl;
 
