@@ -1,7 +1,7 @@
 #include "moteur.hh"
 
-Color cast_ray(const Point4& hit, const Vector4& ray, Object* obj, Scene& scene, int depth, float previous_eta = 1);
-
+Color cast_ray(const Point4& hit, Vector4& ray, Object* obj, Scene& scene,
+               int depth, float previous_eta = 1);
 
 // Angle returned in radians [0, Pi/2]
 float get_angle_margin(const TextureInfo& text)
@@ -33,10 +33,11 @@ Vector4 get_outgoing_ray(float angle_margin, Vector4& normal,
     //     return get_outgoing_ray(angle_margin, normal, reflected);
     // }
 
-    while (true) {
+    while (true)
+    {
         auto new_vec = reflected * std::cos(rand_angle)
-                    + u * (std::sin(rand_angle) * std::cos(rand_dir))
-                    + v * (std::sin(rand_angle) * std::sin(rand_dir));
+            + u * (std::sin(rand_angle) * std::cos(rand_dir))
+            + v * (std::sin(rand_angle) * std::sin(rand_dir));
 
         if (dot_product(normal, new_vec) >= 0)
             return new_vec;
@@ -78,7 +79,7 @@ Color compute_direct_rays(Scene& scene, const Point4& hit, Vector4& normal,
         // Shadow check
         auto [sh, so] =
             bvh_intersect(scene.bvh_pool, scene.objects, offset_hit, to_light);
-        if (sh && so != light_obj && so->texture->info->kr == 0)
+        if (sh && so != light_obj && so->get_texture(*sh)->kr == 0)
         {
             float to_blocker = distance(offset_hit, *sh);
             if (to_blocker < dist_to_light - 0.01f)
@@ -111,15 +112,17 @@ Vector4 get_ingoing_ray(Vector4& dir, Vector4& normal, float eta)
     return ingoing_ray;
 }
 
-Color compute_indirect_rays(Scene& scene, Object *obj, Vector4& normal, const Point4& hit, const Vector4& ray, TextureInfo *info, int depth, float previous_eta = 1)
+Color compute_indirect_rays(Scene& scene, Object* obj, Vector4& normal,
+                            const Point4& hit, Vector4& ray, TextureInfo* info,
+                            int depth, float previous_eta = 1)
 {
     // Ready needed variables such as angle with BRDF
     float ar = info->color->colors[RED] / 255.f;
     float ag = info->color->colors[GREEN] / 255.f;
     float ab = info->color->colors[BLUE] / 255.f;
 
-    //auto V = -(ray + hit);
-    //V.normalize();
+    // auto V = -(ray + hit);
+    // V.normalize();
     ray.normalize();
     auto for_ref = ray * -1;
     bool one_refracted = false;
@@ -193,18 +196,19 @@ Color compute_indirect_rays(Scene& scene, Object *obj, Vector4& normal, const Po
         float w = diffuse_w + specular_w + refracted_w;
 
         // Send ray towards the object
-        Color incoming = cast_ray(*next_hit, new_ray, next_obj, scene, depth + 1, next_eta);
+        Color incoming =
+            cast_ray(*next_hit, new_ray, next_obj, scene, depth + 1, next_eta);
         if (rd > (1 - info->kr))
         {
-          indirect_r += (incoming.colors[RED] / 255.f) * refracted_w;
-          indirect_g += (incoming.colors[GREEN] / 255.f) * refracted_w;
-          indirect_b += (incoming.colors[BLUE] / 255.f) * refracted_w;
+            indirect_r += (incoming.colors[RED] / 255.f) * refracted_w;
+            indirect_g += (incoming.colors[GREEN] / 255.f) * refracted_w;
+            indirect_b += (incoming.colors[BLUE] / 255.f) * refracted_w;
         }
         else
         {
-          indirect_r += (incoming.colors[RED] / 255.f) * w * ar;
-          indirect_g += (incoming.colors[GREEN] / 255.f) * w * ag;
-          indirect_b += (incoming.colors[BLUE] / 255.f) * w * ab;
+            indirect_r += (incoming.colors[RED] / 255.f) * w * ar;
+            indirect_g += (incoming.colors[GREEN] / 255.f) * w * ag;
+            indirect_b += (incoming.colors[BLUE] / 255.f) * w * ab;
         }
         nb_valid++;
     }
@@ -233,7 +237,8 @@ Color compute_light_rays(LightTexture* light_tex, const Point4& hit, int depth)
     return Color(0, 0, 0);
 }
 
-Color cast_ray(const Point4& hit, const Vector4& ray, Object* obj, Scene& scene, int depth, float previous_eta)
+Color cast_ray(const Point4& hit, Vector4& ray, Object* obj, Scene& scene,
+               int depth, float previous_eta)
 {
     if (depth == MAX_DEPTH)
         return Color(0, 0, 0);
@@ -362,13 +367,19 @@ int main(int argc, char** argv)
     light.lightPower = 1.0f;
 
     time_t load_textureInfo = std::time(nullptr);
-    printTimeTaken(load_start, load_textureInfo, "while loading texture Infos.");
+    printTimeTaken(load_start, load_textureInfo,
+                   "while loading texture Infos.");
 
-    // auto uniform_flat_white = std::make_shared<UniformTexture>(Color(255, 255, 255));
-    auto uniform_flat_red = std::make_shared<UniformTexture>(Color(182, 35, 48));
-    auto uniform_flat_blue = std::make_shared<UniformTexture>(Color(82, 41, 214));
-    auto uniform_flat_green = std::make_shared<UniformTexture>(Color(83, 172, 89));
-    auto uniform_flat_cyan = std::make_shared<UniformTexture>(Color(94, 154, 161)); //5e9aa1
+    // auto uniform_flat_white = std::make_shared<UniformTexture>(Color(255,
+    // 255, 255));
+    auto uniform_flat_red =
+        std::make_shared<UniformTexture>(Color(182, 35, 48));
+    auto uniform_flat_blue =
+        std::make_shared<UniformTexture>(Color(82, 41, 214));
+    auto uniform_flat_green =
+        std::make_shared<UniformTexture>(Color(83, 172, 89));
+    auto uniform_flat_cyan =
+        std::make_shared<UniformTexture>(Color(94, 154, 161)); // 5e9aa1
     auto uniform_mat_red = std::make_shared<UniformTexture>(&mat_red);
     auto light_texture = std::make_shared<LightTexture>(&light);
     auto image_texture = std::make_shared<ImageTexture>("image.jpg");
@@ -391,8 +402,8 @@ int main(int argc, char** argv)
 
     Sphere ball1(new_text, Point4(0, -4, 9), 4);
     Sphere ball2(uniform_mat_red, Point4(-10, 0, 10), 2);
-    //Sphere light_ball(light_texture, Point4(0, 15, 0), 4);
-    //Sphere light_ball1(light_texture, Point4(-20, 10, 10), 4);
+    // Sphere light_ball(light_texture, Point4(0, 15, 0), 4);
+    // Sphere light_ball1(light_texture, Point4(-20, 10, 10), 4);
 
     Triangle triangle1 = Triangle(Point4(-200, -200, 30), Point4(200, -200, 30),
                                   Point4(0, 200, 30), new_text_triangle);
@@ -411,21 +422,32 @@ int main(int argc, char** argv)
     Camera camera(Point4(0, 0, 0), Vector4(0, 0, 1), Vector4(0, 1, 0), 45, 45,
                   Point4(0, 0, 5));
 
-    auto car = Mesh::from_obj("plant.obj", uniform_mat_red, Point4(0, -20, 20), 1.7);
-    auto skull = Mesh::from_obj("skull.obj", uniform_mat_red, Point4(20, -20, 35), 0.7, {-90, 155, 0});
+    auto car =
+        Mesh::from_obj("plant.obj", uniform_mat_red, Point4(0, -20, 20), 1.7);
+    auto skull = Mesh::from_obj("skull.obj", uniform_mat_red,
+                                Point4(20, -20, 35), 0.7, { -90, 155, 0 });
 
     time_t load_obj = std::time(nullptr);
     printTimeTaken(load_spheres, load_obj, "while loading .obj files.");
 
-    auto bot_bound = Mesh::rectangle(Point4(-40, -20, 50), Point4(40, -20, 50), Point4(40, -20, 0), Point4(-40, -20, 0), image_texture);
-    auto left_bound = Mesh::rectangle(Point4(-40, 20, -100), Point4(-40, 20, 50), Point4(-40, -20, 50), Point4(-40, -20, -100), uniform_flat_blue);
-    auto right_bound = Mesh::rectangle(Point4(40, 20, 50), Point4(40, 20, -100), Point4(40, -20, -100), Point4(40, -20, 50), uniform_flat_green);
-    auto top_bound = Mesh::rectangle(Point4(-40, 20, -100), Point4(40, 20, -100), Point4(40, 20, 50), Point4(-40, 20, 50), uniform_flat_red);
-    auto forward_bound = Mesh::rectangle(Point4(-100, 20, 35), Point4(100, 20, 35), Point4(100, -20, 35), Point4(-100, -20, 35), uniform_flat_cyan);
+    auto bot_bound =
+        Mesh::rectangle(Point4(-40, -20, 50), Point4(40, -20, 50),
+                        Point4(40, -20, 0), Point4(-40, -20, 0), image_texture);
+    auto left_bound = Mesh::rectangle(
+        Point4(-40, 20, -100), Point4(-40, 20, 50), Point4(-40, -20, 50),
+        Point4(-40, -20, -100), uniform_flat_blue);
+    auto right_bound = Mesh::rectangle(Point4(40, 20, 50), Point4(40, 20, -100),
+                                       Point4(40, -20, -100),
+                                       Point4(40, -20, 50), uniform_flat_green);
+    auto top_bound = Mesh::rectangle(Point4(-40, 20, -100),
+                                     Point4(40, 20, -100), Point4(40, 20, 50),
+                                     Point4(-40, 20, 50), uniform_flat_red);
+    auto forward_bound = Mesh::rectangle(
+        Point4(-100, 20, 35), Point4(100, 20, 35), Point4(100, -20, 35),
+        Point4(-100, -20, 35), uniform_flat_cyan);
 
     time_t load_border = std::time(nullptr);
     printTimeTaken(load_obj, load_border, "while loading borders.");
-
 
     Scene scene;
     scene.addObject(bot_bound);

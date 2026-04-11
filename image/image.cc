@@ -73,8 +73,8 @@ void PPM::save_image(const std::string& filename)
     {
         for (auto j = 0; j < width; j++)
         {
-            Color* p = this->pixels[i * width + j];
-            os << p->colors[0] << p->colors[1] << p->colors[2];
+            Color p = this->pixels[i * width + j];
+            os << p.colors[0] << p.colors[1] << p.colors[2];
         }
     }
 }
