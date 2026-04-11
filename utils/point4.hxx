@@ -22,6 +22,11 @@ const inline float Point4::operator*(const Point4& p) const
     return x * p.x + y * p.y + z * p.z;
 }
 
+inline Point4& Point4::operator=(const Point4& v) {
+    x = v.x; y = v.y; z = v.z; i = 1;
+    return *this;
+}
+
 inline std::ostream& Point4::operator<<(std::ostream& os)
 {
     os << "(" << x << ", " << y << ", " << z << ", " << i << ")" << std::endl;

@@ -3,6 +3,7 @@
 #include <cmath>
 
 #include "../texture/UniformTexture.hh"
+#include "../texture/ImageTexture.hh"
 
 Sphere::Sphere()
 {
@@ -108,7 +109,12 @@ Vector4 Sphere::get_normal(const Point4& intersection)
 
 TextureInfo *Sphere::get_texture(const Point4& v)
 {
-    return texture->get_elements(v);
+    auto im = dynamic_cast<ImageTexture*>(texture.get());
+    if (!im)
+        return texture->get_elements(v);
+
+    auto val = im->get_elements_sphere(v, center, radius);
+    return val;
 }
 
 AABB Sphere::get_bounds() const {

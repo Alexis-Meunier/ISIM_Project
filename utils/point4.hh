@@ -19,6 +19,8 @@ public:
     const Point4 operator-(const Point4& p) const;
     const Point4 operator*(const double& scalar) const; // Translation
     const float operator*(const Point4& p) const; // Dot product
+    Point4& operator=(const Point4& v);
+
 
     // Debugging
     std::ostream& operator<<(std::ostream& os);

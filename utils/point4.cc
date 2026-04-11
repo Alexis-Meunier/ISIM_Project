@@ -11,7 +11,7 @@ Point4::Point4(const float& x_, const float& y_, const float& z_, const float& i
     this->x = x_;
     this->y = y_;
     this->z = z_;
-    this->i = 1;
+    this->i = i_;
 }
 
 Point4::Point4(const float& x_, const float& y_, const float& z_)
@@ -32,22 +32,33 @@ Point4::Point4(const Point4& v)
 
 void Point4::rotateX(const float& angle)
 {
-    this->y = std::cos(angle) * y - std::sin(angle) * z;
-    this->z = std::sin(angle) * y + std::cos(angle) * z;
+    float oldY = this->y, oldZ = this->z;
+    auto cos = std::cos(angle);
+    auto sin = std::sin(angle);
+
+    this->y = cos * oldY - sin * oldZ;
+    this->z = sin * oldY + cos * oldZ;
 }
 
 void Point4::rotateY(const float& angle)
 {
-    this->x = std::cos(angle) * x - std::sin(angle) * z;
-    this->z = std::sin(angle) * x + std::cos(angle) * z;
+    float oldX = this->x, oldZ = this->z;
+    auto cos = std::cos(angle);
+    auto sin = std::sin(angle);
+
+    this->x = cos * oldX - sin * oldZ;
+    this->z = sin * oldX + cos * oldZ;
 }
 
 void Point4::rotateZ(const float& angle)
 {
-    this->x = std::cos(angle) * x - std::sin(angle) * y;
-    this->y = std::sin(angle) * x + std::cos(angle) * y;
-}
+    float oldX = this->x, oldY = this->y;
+    auto cos = std::cos(angle);
+    auto sin = std::sin(angle);
 
+    this->x = cos * oldX - sin * oldY;
+    this->y = sin * oldX + cos * oldY;
+}
 
 float distance(const Point4& p1, const Point4& p2)
 {
