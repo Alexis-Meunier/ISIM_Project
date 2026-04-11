@@ -34,6 +34,14 @@ Point4::Point4(const Point4& v)
     this->i = 1;
 }
 
+float Point4::distance(const Point4& other) const
+{
+    float difx = other.x - x;
+    float dify = other.y - y;
+    float difz = other.z - z;
+    return std::sqrt(difx * difx + dify * dify + difz * difz);
+}
+
 void Point4::rotateX(const float& angle)
 {
     this->y = std::cos(angle) * y - std::sin(angle) * z;

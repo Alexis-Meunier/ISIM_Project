@@ -13,6 +13,7 @@ public:
     void rotateX(const float& angle);
     void rotateY(const float& angle);
     void rotateZ(const float& angle);
+    float distance(const Point4& other) const;
 
     // Arithmetic
     const Point4 operator+(const Point4& p) const;
