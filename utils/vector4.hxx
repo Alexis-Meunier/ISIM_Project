@@ -7,6 +7,16 @@ const inline Vector4 Vector4::operator+(const Vector4& p) const
     return Vector4(x + p.x, y + p.y, z + p.z, 1);
 }
 
+const inline Vector4 Vector4::operator+(const Point4& p) const
+{
+    return Vector4(x + p.x, y + p.y, z + p.z, 1);
+}
+
+inline Vector4 Vector4::operator-()
+{
+    return Vector4(-x, -y, -z, 1);
+}
+
 const inline Vector4 Vector4::operator-(const Vector4& p) const
 {
     return Vector4(x - p.x, y - p.y, z - p.z, 1);
@@ -20,6 +30,11 @@ const inline Vector4 Vector4::operator*(const double& scalar) const
 const inline float Vector4::operator*(const Vector4& p) const
 {
     return x * p.x + y * p.y + z * p.z;
+}
+
+inline Vector4& Vector4::operator=(const Vector4& v) {
+    x = v.x; y = v.y; z = v.z; i = 1;
+    return *this;
 }
 
 inline std::ostream& Vector4::operator<<(std::ostream& os)

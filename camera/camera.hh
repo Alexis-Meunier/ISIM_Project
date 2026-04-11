@@ -12,6 +12,8 @@ public:
            const double& open_angle_y, const Point4& zmin);
     Camera(const Camera& cam);
 
+    Camera& operator=(const Camera& cam);
+
     Point4 center;
     Vector4 looking_at;
     Vector4 up;

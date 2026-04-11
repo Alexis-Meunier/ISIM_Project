@@ -3,3 +3,6 @@
 *.o
 main
 results/
+*.rar
+*.zip
+*.obj

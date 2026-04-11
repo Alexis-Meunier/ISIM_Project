@@ -49,3 +49,15 @@ std::pair<float, float> get_camera_plane(const Camera& cam)
 
     return { W, H };
 }
+
+Camera& Camera::operator=(const Camera& cam)
+{
+   center = cam.center;
+   looking_at = cam.looking_at;
+   up = cam.up;
+   open_angle_x = cam.open_angle_x;
+   open_angle_y = cam.open_angle_y;
+   zmin = cam.zmin;
+
+   return *this;
+}
