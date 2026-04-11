@@ -193,7 +193,7 @@ Color compute_indirect_rays(Scene& scene, Object* obj, Vector4& normal,
         float specular_w = info->ks; // specular doesn't attenuated by cos_theta
         float refracted_w = info->kr;
 
-        float w = diffuse_w + specular_w + refracted_w;
+        float w = diffuse_w + specular_w;
 
         // Send ray towards the object
         Color incoming =
@@ -234,7 +234,11 @@ Color compute_light_rays(LightTexture* light_tex, const Point4& hit, int depth)
                      li->color->colors[BLUE] * li->lightPower);
     }
 
-    return Color(0, 0, 0);
+    auto li = light_tex->get_elements(hit);
+    return Color(li->color->colors[RED] * li->lightPower,
+                 li->color->colors[GREEN] * li->lightPower,
+                 li->color->colors[BLUE] * li->lightPower);
+    // return Color(0, 0, 0);
 }
 
 Color cast_ray(const Point4& hit, Vector4& ray, Object* obj, Scene& scene,
@@ -465,7 +469,7 @@ int main(int argc, char** argv)
     scene.addObject(triangle1);
     scene.addObject(triangle2);
     scene.addObject(triangle3);
-    //  scene.addObject(light_ball);
+    scene.addObject(light_ball);
     scene.addLights(light_ball);
     // scene.addObject(light_ball2);
     // scene.addLights(light_ball2);
