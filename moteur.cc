@@ -107,8 +107,8 @@ Vector4 get_ingoing_ray(Vector4& dir, Vector4& normal, float eta)
     float cos_ingoing = std::sqrt(1 - sin_squared_ingoing);
 
     auto ingoing_ray = dir * eta + normal * (eta * cos_dir_norm - cos_ingoing);
-    std::cout << "norm = " << normal << "Ingoing = " << ingoing_ray
-              << std::endl;
+    // std::cout << "norm = " << normal << "Ingoing = " << ingoing_ray
+    //<< std::endl;
     return ingoing_ray;
 }
 
@@ -160,7 +160,7 @@ Color compute_indirect_rays(Scene& scene, Object* obj, Vector4& normal,
         {
             if (one_refracted)
                 continue;
-            std::cout << eta << std::endl;
+            // std::cout << eta << std::endl;
             new_ray = get_ingoing_ray(ray, normal, eta);
             one_refracted = true;
             /*if (dir.x != new_ray.x || dir.y != new_ray.y || dir.z !=
@@ -394,7 +394,7 @@ int main(int argc, char** argv)
     time_t load_spheres = std::time(nullptr);
     printTimeTaken(load_textures, load_spheres, "while loading spheres.");
     auto new_text =
-        std::make_shared<UniformTexture>(Color{ 255, 255, 255 }, 0, 0, 1, 1.5);
+        std::make_shared<UniformTexture>(Color{ 255, 255, 255 }, 0, 1, 0, 1);
     auto new_text_triangle =
         std::make_shared<UniformTexture>(Color{ 255, 255, 0 });
     auto new_text_triangle1 =
@@ -422,10 +422,10 @@ int main(int argc, char** argv)
     Camera camera(Point4(0, 0, 0), Vector4(0, 0, 1), Vector4(0, 1, 0), 45, 45,
                   Point4(0, 0, 5));
 
-    auto car =
+    /*auto car =
         Mesh::from_obj("plant.obj", uniform_mat_red, Point4(0, -20, 20), 1.7);
     auto skull = Mesh::from_obj("skull.obj", uniform_mat_red,
-                                Point4(20, -20, 35), 0.7, { -90, 155, 0 });
+                                Point4(20, -20, 35), 0.7, { -90, 155, 0 });*/
 
     time_t load_obj = std::time(nullptr);
     printTimeTaken(load_spheres, load_obj, "while loading .obj files.");
@@ -450,14 +450,14 @@ int main(int argc, char** argv)
     printTimeTaken(load_obj, load_border, "while loading borders.");
 
     Scene scene;
-    scene.addObject(bot_bound);
-    // scene.addObject(top_bound);
-    // scene.addObject(right_bound);
-    // scene.addObject(left_bound);
-    // scene.addObject(forward_bound);
+    // scene.addObject(bot_bound);
+    //  scene.addObject(top_bound);
+    //  scene.addObject(right_bound);
+    //  scene.addObject(left_bound);
+    //  scene.addObject(forward_bound);
 
     // scene.addObject(car);
-    scene.addObject(skull);
+    // scene.addObject(skull);
 
     // scene.addObject(light_ball);
     scene.addObject(ball1);
@@ -465,7 +465,7 @@ int main(int argc, char** argv)
     scene.addObject(triangle1);
     scene.addObject(triangle2);
     scene.addObject(triangle3);
-    scene.addObject(light_ball);
+    //  scene.addObject(light_ball);
     scene.addLights(light_ball);
     // scene.addObject(light_ball2);
     // scene.addLights(light_ball2);
