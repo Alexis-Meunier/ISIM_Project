@@ -13,7 +13,8 @@ SKEL_CPP_FILES = objects/sphere.cc \
 				 objects/bvh.cc \
 				 objects/mesh.cc \
 				 moteur.cc \
-				 blob.cc \
+				 perlin.cc \
+				 objects/blob.cc \
 				 camera/camera.cc \
 				 image/image.cc \
 				 light/circle_light.cc \
@@ -21,6 +22,7 @@ SKEL_CPP_FILES = objects/sphere.cc \
 				 texture/ImageTexture.cc \
 				 texture/UniformTexture.cc \
 				 texture/LightTexture.cc \
+				 texture/ProceduralTexture.cc \
 				 utils/color.cc \
 				 utils/scene.cc \
 				 utils/vector4.cc \
