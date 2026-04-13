@@ -1,7 +1,7 @@
 #pragma once
 
-#define NB_RAYS 10
-#define NB_RAYS_REFLECTED 5
+#define NB_RAYS 1
+#define NB_RAYS_REFLECTED 3
 #define MAX_DEPTH 5
 
 #include <algorithm>
@@ -22,6 +22,7 @@
 #include "utils/console.hh"
 #include "utils/scene.hh"
 #include "utils/vector4.hh"
+#include "blob.hh"
 
 template <typename T, typename U>
 using pair = std::pair<T, U>;

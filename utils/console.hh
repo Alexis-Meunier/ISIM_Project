@@ -46,6 +46,7 @@ inline void printProgressBar(int progress, int total, int barWidth = 50)
     bar += "\033[0m";
 
     std::string timeStr = "Estimated time remaining: ";
+    std::string timeSinceBegin = "Running since ";
     if (first) {
         timeStr += "- s";
         g_start = std::time(nullptr);
@@ -56,16 +57,18 @@ inline void printProgressBar(int progress, int total, int barWidth = 50)
             ? (elapsed / percent) * (100 - percent)
             : 0;
         timeStr += getTime(estimated);
+        timeSinceBegin += getTime(difftime(now, g_start));
     }
 
     if (!first)
-        printf("\033[2A");
+        printf("\033[3A");
     else
         first = false;
 
 
     printf("\033[2K%s\n", timeStr.c_str());
     printf("\033[2K[%s] %d%%\n", bar.c_str(), percent);
+    printf("\033[2K%s\n", timeSinceBegin.c_str());
     fflush(stdout);
 }
 
