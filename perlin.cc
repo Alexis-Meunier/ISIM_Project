@@ -93,6 +93,10 @@ PPM createRandomImage(int sx, int sy, int grid_size)
     return img;
 }
 
+// TODO: Use a map to stores coordinates of grid corners
+// That way we only compute gradients of these corners when we need them
+// + We could use any coordinates, not just on the original image
+// Which would lead to real procedural on surfaces of unknown size
 void procedural(int sx = 100, int sy = 100, int nb_images = 5, float weight = 0.5f, int grid_size = 8)
 {
     std::vector<float> buffer(sx * sy, 0.0f);
