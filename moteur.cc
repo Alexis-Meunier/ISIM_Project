@@ -416,10 +416,8 @@ int main(int argc, char** argv)
     // std::cout << "Saving Image" << std::endl;
     // img.save_image("results/" + std::string(argv[1]) + ".ppm");
 
-    // auto im = createRandomImage(100, 100, 8);
-    // im.save_image("results/random.ppm");
-
-    // procedural();
+    auto im = createRandomImage(500, 500, 6, 0.6, 2, 20);
+    im.save_image("results/random.ppm");
 
     return 0;
 }

@@ -2,13 +2,19 @@
 
 #include <algorithm>
 #include <cmath>
+#include <map>
 #include <random>
 #include <vector>
 
 // Compute Random gradient at grid corners
-std::pair<float, float> gradient(float h)
+std::pair<float, float> gradient(int ix, int iy, int seed)
 {
-    return { std::cos(h), std::sin(h) };
+    uint32_t h = (uint32_t)ix * 1619u + (uint32_t)iy * 31337u + (uint32_t)seed * 6971u;
+    h ^= (h >> 13);
+    h *= 1234577u;
+    h ^= (h >> 15);
+    float angle = (h & 0xFFFFu) / 65536.f * 2.f * M_PI;
+    return { std::cos(angle), std::sin(angle) };
 }
 
 // Linear interpolation
@@ -18,131 +24,82 @@ float lerp(float a, float b, float x)
 }
 
 // smootherStep
-float fade(float t)
+float smootherStep(float t)
 {
     return t * t * t * (t * (t * 6 - 15) + 10);
 }
 
-float perlin(float x, float y, std::vector<std::pair<float, float>>& gradients, int grid_size, int nb_col, int nb_row)
+float perlin(float x, float y, int grid_size, int seed)
 {
-    auto x0 = int(x / grid_size);
-    auto y0 = int(y / grid_size);
+    int x0 = (int)std::floor(x / grid_size);
+    int y0 = (int)std::floor(y / grid_size);
 
-    auto x1 = x0 + 1;
-    auto y1 = y0 + 1;
+    int x1 = x0 + 1;
+    int y1 = y0 + 1;
 
-    x1 = std::min(x1, nb_col - 1);
-    y1 = std::min(y1, nb_row - 1);
+    float dx = (x - x0 * grid_size) / grid_size;
+    float dy = (y - y0 * grid_size) / grid_size;
 
-    auto dx = x / grid_size - x0;
-    auto dy = y / grid_size - y0;
+    auto g00 = gradient(x0, y0, seed);
+    auto g10 = gradient(x1, y0, seed);
+    auto g01 = gradient(x0, y1, seed);
+    auto g11 = gradient(x1, y1, seed);
 
-    auto dot00 = gradients[y0 * nb_col + x0].first * dx + gradients[y0 * nb_col + x0].second * dy;
-    auto dot10 = gradients[y0 * nb_col + x1].first * (dx-1) + gradients[y0 * nb_col + x1].second * dy;
-    auto dot01 = gradients[y1 * nb_col + x0].first * dx + gradients[y1 * nb_col + x0].second * (dy-1);
-    auto dot11 = gradients[y1 * nb_col + x1].first * (dx-1) + gradients[y1 * nb_col + x1].second * (dy-1);
+    auto dot00 = g00.first * dx + g00.second * dy;
+    auto dot10 = g10.first * (dx-1) + g10.second * dy;
+    auto dot01 = g01.first * dx + g01.second * (dy-1);
+    auto dot11 = g11.first * (dx-1) + g11.second * (dy-1);
 
-    auto u = fade(dx);
-    auto v = fade(dy);
+    auto u = smootherStep(dx);
+    auto v = smootherStep(dy);
 
     return lerp(lerp(dot00, dot10, u), lerp(dot01, dot11, u), v);
 }
 
-std::vector<std::pair<float, float>> load_gradients(int nb_col, int nb_row)
-{
-    std::vector<std::pair<float, float>> gradients;
-    gradients.resize(nb_col * nb_row);
-
-    for (int y = 0; y < nb_row; y++)
-    {
-        for (int x = 0; x < nb_col; x++)
-        {
-            gradients[y * nb_col + x] = gradient(static_cast<float>(std::rand()) / RAND_MAX * 2 * M_PI);
-        }
-    }
-
-    return gradients;
-}
-
-PPM createRandomImage(int sx, int sy, int grid_size)
+PPM createRandomImage(int sx, int sy, int nb_octaves, float persistence,
+                      float lacunarity, int grid_size)
 {
     PPM img(sx, sy);
 
-    int nb_col = std::ceil((float)img.width / grid_size) + 1;
-    int nb_row = std::ceil((float)img.height / grid_size) + 1;
+    int nb_col = std::ceil((float)sx / grid_size) + 1;
+    int nb_row = std::ceil((float)sy / grid_size) + 1;
 
-    auto gradients = load_gradients(nb_col, nb_row);
+    auto frequency = 1.f;
+    auto amplitude = 1.f;
+    float value = 0.f;
+    float maxAmp = 0.f;
 
-    for (int y = 0; y < img.height; y++)
+    std::vector<float> values(sx * sy, 0.f);
+
+    for (int i = 0; i < nb_octaves; i++)
     {
-        for (int x = 0; x < img.width; x++)
-        {
-            // Return value [-1, 1]
-            float n = perlin(x, y, gradients, grid_size, nb_col, nb_row);
-
-            // Clamp it back to [0, 1]
-            float normalized = (n + 1.f) * 0.5f;
-
-            // Multiply by 255 to get the grey value
-            int gray = (int)(normalized * 255.f);
-
-            img.pixels[y * img.width + x] = Color(gray, gray, gray);
-        }
-    }
-
-    return img;
-}
-
-// TODO: Use a map to stores coordinates of grid corners
-// That way we only compute gradients of these corners when we need them
-// + We could use any coordinates, not just on the original image
-// Which would lead to real procedural on surfaces of unknown size
-void procedural(int sx = 100, int sy = 100, int nb_images = 5, float weight = 0.5f, int grid_size = 8)
-{
-    std::vector<float> buffer(sx * sy, 0.0f);
-
-    float currentWeight = 1.0f;
-
-    for (int i = 0; i < nb_images; i++)
-    {
-        auto im = createRandomImage(sx, sy, grid_size);
-
         for (int y = 0; y < sy; y++)
         {
             for (int x = 0; x < sx; x++)
             {
-                float col = 255.f - im.pixels[y * sx + x].colors[RED];
-
-                col /= 255.f;
-
-                buffer[y * sx + x] += currentWeight * col;
+                values[y * sx + x] += amplitude * perlin(
+                    x / (float)grid_size * frequency,
+                    y / (float)grid_size * frequency,
+                    1, 42 * i + 1
+                );
             }
         }
 
-        currentWeight *= weight;
+        maxAmp  += amplitude;
+        amplitude *= persistence;
+        frequency *= lacunarity;
     }
 
-    float minVal = 1e9f;
-    float maxVal = -1e9f;
-
-    for (float v : buffer)
-    {
-        minVal = std::min(minVal, v);
-        maxVal = std::max(maxVal, v);
-    }
-
-    PPM img(sx, sy);
+    float minV = *std::min_element(values.begin(), values.end());
+    float maxV = *std::max_element(values.begin(), values.end());
 
     for (int i = 0; i < sx * sy; i++)
     {
-        float norm = (buffer[i] - minVal) / (maxVal - minVal);
-
-        norm = std::pow(norm, 1.3f);
-
-        int gray = (int)(norm * 255.f);
-
+        float normalized = (values[i] - minV) / (maxV - minV);
+        normalized = std::clamp(normalized, 0.f, 1.f);
+        int gray = (int)(normalized * 255.f);
         img.pixels[i] = Color(gray, gray, gray);
     }
 
-    img.save_image("results/procedural.ppm");
+    return img;
 }
