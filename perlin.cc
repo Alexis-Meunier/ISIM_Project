@@ -100,3 +100,70 @@ PPM createRandomImage(int sx, int sy, int nb_octaves, float persistence,
 
     return img;
 }
+
+PPM createWoodTexture(int sx, int sy, int nb_octaves, float persistence,
+                      float lacunarity, int grid_size)
+{
+    PPM img(sx, sy);
+
+    Color darkWood(102, 56, 15);
+    Color lightWood(158, 81, 13);
+
+    // Center of the radius
+    float cx = sx * -0.5f; // left
+    float cy = sy * -1.0f; // above
+
+    for (int y = 0; y < sy; y++)
+    {
+        for (int x = 0; x < sx; x++)
+        {
+            float dx = (x - cx) * 0.4f; // rings stretch wide on X
+            float dy = (y - cy) * 1.0f; // rings dont stretch on Y
+            float dist = std::sqrt(dx * dx + dy * dy);
+
+            float noise = computePerlinAtCoord(x, y, nb_octaves, persistence, lacunarity, grid_size);
+            float distortion = (noise / 255.0f - 0.5f) * 120.0f;
+
+            float rings = std::sin((dist + distortion) * 0.12f);
+
+            float t = (rings + 1.0f) / 2.0f;
+
+            img.pixels[y * sx + x] = Color(
+                lerp(darkWood.colors[RED], lightWood.colors[RED], t),
+                lerp(darkWood.colors[GREEN], lightWood.colors[GREEN], t),
+                lerp(darkWood.colors[BLUE], lightWood.colors[BLUE], t)
+            );
+        }
+    }
+    return img;
+}
+
+PPM createCloudTexture(int sx, int sy, int nb_octaves, float persistence,
+                      float lacunarity, int grid_size)
+{
+    PPM img(sx, sy);
+    auto minS = 100;
+    auto maxS = 200;
+    for (int y = 0; y < sy; y++)
+    {
+        for (int x = 0; x < sx; x++)
+        {
+            int gray = computePerlinAtCoord(x, y, nb_octaves, persistence, lacunarity, grid_size);
+            if (gray < minS)
+                img.pixels[y * sx + x] = Color(61, 174, 235); // blue background
+            else if (gray > maxS)
+                img.pixels[y * sx + x] = Color(255, 255, 255); // white smoke
+            else
+            {
+                // Linear interpolation from blue -> white as gray goes minS -> maxS
+                float interpolation = float(gray - minS) / float(maxS - minS);
+                img.pixels[y * sx + x] = Color(
+                    lerp(61, 255, interpolation),
+                    lerp(174, 255, interpolation),
+                    lerp(235, 255, interpolation)
+                );
+            }
+        }
+    }
+    return img;
+}

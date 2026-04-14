@@ -416,8 +416,14 @@ int main(int argc, char** argv)
     // std::cout << "Saving Image" << std::endl;
     // img.save_image("results/" + std::string(argv[1]) + ".ppm");
 
-    auto im = createRandomImage(500, 500, 6, 0.6, 2, 20);
+    auto im = createRandomImage(500, 500, 5, 0.2, 2, 50);
     im.save_image("results/random.ppm");
+
+    auto wood = createWoodTexture(500, 500, 6, 0.7, 2.0, 120);
+    wood.save_image("results/wood.ppm");
+
+    auto cloud = createCloudTexture(500, 500, 4, 0.6, 2.0, 200);
+    cloud.save_image("results/cloud.ppm");
 
     return 0;
 }
