@@ -20,4 +20,5 @@ public:
     TextureMaterial() = default;
 
     virtual TextureInfo *get_elements(Point4 position) = 0;
+    bool isLight = false;
 };

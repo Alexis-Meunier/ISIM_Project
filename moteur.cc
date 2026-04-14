@@ -62,6 +62,13 @@ Color compute_direct_rays(Scene& scene, const Point4& hit, Vector4& normal,
     {
         // Lights array only has lightTexture
         auto ltex = dynamic_cast<LightTexture*>(light_obj->texture.get());
+        // if (!ltex)
+        // {
+        //     std::cout << "not light\n";
+        //     continue;
+        // }
+        // else
+        //     std::cout << "Yes light\n";
         auto li = ltex->get_elements(hit);
 
         // Get the center of the light
@@ -225,20 +232,10 @@ Color compute_indirect_rays(Scene& scene, Object* obj, Vector4& normal,
 
 Color compute_light_rays(LightTexture* light_tex, const Point4& hit, int depth)
 {
-    // Only consider the first depth, further depths will be handled later
-    if (depth == 0)
-    {
-        auto li = light_tex->get_elements(hit);
-        return Color(li->color->colors[RED] * li->lightPower,
-                     li->color->colors[GREEN] * li->lightPower,
-                     li->color->colors[BLUE] * li->lightPower);
-    }
-
     auto li = light_tex->get_elements(hit);
     return Color(li->color->colors[RED] * li->lightPower,
                  li->color->colors[GREEN] * li->lightPower,
                  li->color->colors[BLUE] * li->lightPower);
-    // return Color(0, 0, 0);
 }
 
 Color cast_ray(const Point4& hit, Vector4& ray, Object* obj, Scene& scene,
@@ -252,6 +249,10 @@ Color cast_ray(const Point4& hit, Vector4& ray, Object* obj, Scene& scene,
     if (light_tex != nullptr)
     {
         return compute_light_rays(light_tex, hit, depth);
+    }
+    if (depth == 0 && obj->texture->isLight)
+    {
+        return *obj->get_texture(hit)->color;
     }
 
     TextureInfo* info = obj->get_texture(hit);
@@ -352,17 +353,6 @@ PPM computeScene(Scene& scene, const int& image_h, const int& image_w)
 
 int main(int argc, char** argv)
 {
-    // auto bot_bound = Mesh::rectangle(Point4(-40, -20, 50), Point4(40, -20, 50), Point4(40, -20, 0), Point4(-40, -20, 0), image_texture);
-    // auto left_bound = Mesh::rectangle(Point4(-40, 20, -100), Point4(-40, 20, 50), Point4(-40, -20, 50), Point4(-40, -20, -100), uniform_flat_blue);
-    // auto right_bound = Mesh::rectangle(Point4(40, 20, 50), Point4(40, 20, -100), Point4(40, -20, -100), Point4(40, -20, 50), uniform_flat_green);
-    // auto top_bound = Mesh::rectangle(Point4(-40, 20, -100), Point4(40, 20, -100), Point4(40, 20, 50), Point4(-40, 20, 50), uniform_flat_red);
-    // auto forward_bound = Mesh::rectangle(Point4(-100, 20, 35), Point4(100, 20, 35), Point4(100, -20, 35), Point4(-100, -20, 35), uniform_flat_cyan);
-    
-    // scene.addObject(bot_bound);
-    // scene.addObject(top_bound);
-    // scene.addObject(right_bound);
-    // scene.addObject(left_bound);
-    // scene.addObject(forward_bound);
 
     // time_t load_border = std::time(nullptr);
     // printTimeTaken(load_obj, load_border, "while loading borders.");
@@ -373,57 +363,76 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    // time_t load_start = std::time(nullptr);
+    time_t load_start = std::time(nullptr);
 
-    // TextureInfo mat_red{ kd: 0.8f, ks: 0.2, color: new Color(255, 0, 0) };
-    // LightInfo light;
-    // light.kd = 0.5f;
-    // light.ks = 0.2f;
-    // light.color = new Color(255, 255, 255);
-    // light.lightPower = 0.8f;
+    TextureInfo mat_red{ kd: 0.8f, ks: 0.2, color: new Color(255, 0, 0) };
+    LightInfo light;
+    light.kd = 0.5f;
+    light.ks = 0.2f;
+    light.color = new Color(255, 255, 255);
+    light.lightPower = 0.8f;
+    LightInfo stronk_light;
+    stronk_light.kd = 0.5f;
+    stronk_light.ks = 0.2f;
+    stronk_light.color = new Color(255, 255, 255);
+    stronk_light.lightPower = 0.9f;
 
-    // time_t load_textureInfo = std::time(nullptr);
-    // printTimeTaken(load_start, load_textureInfo, "while loading texture Infos.");
+    time_t load_textureInfo = std::time(nullptr);
+    printTimeTaken(load_start, load_textureInfo, "while loading texture Infos.");
 
-    // auto uniform_flat_red = std::make_shared<UniformTexture>(Color(182, 35, 48));
-    // auto uniform_mat_red = std::make_shared<UniformTexture>(&mat_red);
-    // auto light_texture = std::make_shared<LightTexture>(&light);
+    auto sky = std::make_shared<ProceduralTexture>(ProceduralType::CLOUD, 1, 0, 0, 0);
+    auto wood = std::make_shared<ProceduralTexture>(ProceduralType::WOOD, 1, 0, 0, 0);
+    auto uniform_flat_blue = std::make_shared<UniformTexture>(Color(0, 100, 255));
+    auto uniform_flat_green = std::make_shared<UniformTexture>(Color(100, 255, 37));
+    auto uniform_flat_cyan = std::make_shared<UniformTexture>(Color(0, 255, 255));
+    auto uniform_mat_red = std::make_shared<UniformTexture>(&mat_red);
+    auto light_texture = std::make_shared<LightTexture>(&light);
+    auto stronk_light_texture = std::make_shared<LightTexture>(&stronk_light);
+    // auto image_texture = std::make_shared<ImageTexture>("image.jpg");
 
-    // time_t load_textures = std::time(nullptr);
-    // printTimeTaken(load_textureInfo, load_textures, "while loading textures.");
+    time_t load_textures = std::time(nullptr);
+    printTimeTaken(load_textureInfo, load_textures, "while loading textures.");
 
-    // Sphere light_ball(light_texture, Point4(0, 20, 40), 3);
+    Sphere light_ball(light_texture, Point4(0, 20, 40), 3);
     // Sphere light_ball2(light_texture, Point4(0, 0, -10), 3);
+    // Sphere sky_ball(sky, Point4(-15, 0, 30), 10);
+    // Sphere wood_ball(wood, Point4(15, 0, 30), 10);
 
-    // time_t load_spheres = std::time(nullptr);
-    // printTimeTaken(load_textures, load_spheres, "while loading spheres.");
-    
-    // Vector4 looking_at(0, 0, 1);
-    // looking_at.normalize();
-    // Camera camera(Point4(0, 0, 0), looking_at, Vector4(0, 1, 0), 45, 45,
-    //               Point4(0, 0, 5));
+    time_t load_spheres = std::time(nullptr);
+    printTimeTaken(load_textures, load_spheres, "while loading spheres.");
 
-    // Scene scene;
-    // scene.addLights(light_ball);
-    // scene.addLights(light_ball2);
-    // scene.setCamera(camera);
 
-    // time_t start = std::time(nullptr);
-    // auto img = computeScene(scene, 1080, 1080);
-    // time_t end = std::time(nullptr);
-    // printTimeTaken(start, end, "");
+    auto bot_bound = Mesh::rectangle(Point4(-40, -20, 50), Point4(40, -20, 50), Point4(40, -20, 0), Point4(-40, -20, 0), wood);
+    // auto left_bound = Mesh::rectangle(Point4(-40, 20, -100), Point4(-40, 20, 50), Point4(-40, -20, 50), Point4(-40, -20, -100), uniform_flat_blue);
+    // auto right_bound = Mesh::rectangle(Point4(40, 20, 50), Point4(40, 20, -100), Point4(40, -20, -100), Point4(40, -20, 50), uniform_flat_green);
+    auto top_bound = Mesh::rectangle(Point4(-40, 20, -100), Point4(40, 20, -100), Point4(40, 20, 50), Point4(-40, 20, 50), sky);
+    // auto forward_bound = Mesh::rectangle(Point4(-100, 20, 35), Point4(100, 20, 35), Point4(100, -20, 35), Point4(-100, -20, 35), uniform_flat_cyan);
 
-    // std::cout << "Saving Image" << std::endl;
-    // img.save_image("results/" + std::string(argv[1]) + ".ppm");
+    Vector4 looking_at(0, 0, 1);
+    looking_at.normalize();
+    Camera camera(Point4(0, 0, 0), looking_at, Vector4(0, 1, 0), 45, 45,
+                  Point4(0, 0, 5));
 
-    auto im = createRandomImage(500, 500, 5, 0.2, 2, 50);
-    im.save_image("results/random.ppm");
+    Scene scene;
+    scene.setCamera(camera);
+    scene.addLights(light_ball);
+    // scene.addLights(light_ball2, false);
+    // scene.addLights(light_tri, false);
+    // scene.addObject(wood_ball);
+    // scene.addObject(sky_ball);
+    scene.addObject(bot_bound);
+    scene.addObject(top_bound);
+    // scene.addObject(right_bound);
+    // scene.addObject(left_bound);
+    // scene.addObject(forward_bound);
 
-    auto wood = createWoodTexture(500, 500, 6, 0.7, 2.0, 120);
-    wood.save_image("results/wood.ppm");
+    time_t start = std::time(nullptr);
+    auto img = computeScene(scene, 1080, 1080);
+    time_t end = std::time(nullptr);
+    printTimeTaken(start, end, "");
 
-    auto cloud = createCloudTexture(500, 500, 4, 0.6, 2.0, 200);
-    cloud.save_image("results/cloud.ppm");
+    std::cout << "Saving Image" << std::endl;
+    img.save_image("results/" + std::string(argv[1]) + ".ppm");
 
     return 0;
 }

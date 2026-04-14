@@ -24,6 +24,7 @@ Mesh Mesh::rectangle(
     m.triangles.push_back(t1);
     m.triangles.push_back(t2);
 
+    m.texture = texture;
     m.build_bvh();
     return m;
 }

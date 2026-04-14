@@ -2,7 +2,7 @@
 
 #define NB_RAYS 1
 #define NB_RAYS_REFLECTED 3
-#define MAX_DEPTH 5
+#define MAX_DEPTH 3
 
 #include <algorithm>
 #include <cmath>
