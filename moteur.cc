@@ -1,5 +1,7 @@
 #include "moteur.hh"
 
+#include "utils/vector4.hh"
+
 Color cast_ray(const Point4& hit, Vector4& ray, Object* obj, Scene& scene,
                int depth, float previous_eta = 1);
 
@@ -119,38 +121,34 @@ Vector4 get_ingoing_ray(Vector4& dir, Vector4& normal, float etai, float etat)
     if (sin_squared_ingoing > 1)
         return Vector4(); // error, total internal refraction
     float cos_ingoing = std::sqrt(1 - sin_squared_ingoing);
-    /*std::cout << "eta = " << eta << " cos = " << cos_dir_norm
-              << " calculus = " << eta * cos_dir_norm - cos_ingoing << std::endl
-              << " dir = " << dir << " norm = " << normal << std::endl;*/
 
     auto ingoing_ray =
         dir * ratio + normal * (ratio * cos_dir_norm - cos_ingoing);
     ingoing_ray.normalize();
-    /*std::cout << "eta = " << eta
-              << "calc = " << eta * cos_dir_norm - cos_ingoing << std::endl
-              << " dir = " << dir << " norm = " << normal
-              << " ingoing = " << ingoing_ray << std::endl;
-    std::cout << "cosi = " << cos_dir_norm << "\n";
-    std::cout << "etai = " << etai << "\n";
-    std::cout << "etat = " << etat << "\n";
-    std::cout << "sin_squared = " << sin_squared_ingoing << "\n";
-    std::cout << "cost = " << cos_ingoing << "\n";
-    std::cout << "ray = " << dir;
-    std::cout << "normal = " << normal;
-    std::cout << "new_ray = " << ingoing_ray << "\n";*/
     return ingoing_ray;
 }
 
 float fresnel(float cosi, float etai, float etat)
 {
     float r0 = (etai - etat) / (etai + etat);
-    // std::cout << "etai = " << etai << "\netat = " << etat << "\ncosi = " <<
-    // cosi
-    //          << "\n";
     r0 = r0 * r0;
     float to_ret = r0 + (1 - r0) * std::pow(1 - cosi, 5);
-    // std::cout << to_ret << "\n";
     return to_ret;
+}
+
+Color till_cast_ray(Scene& scene, Point4& offset_hit, Vector4& ray,
+                    Vector4& normal, TextureInfo* info, int depth,
+                    float next_eta)
+{
+    auto [next_hit, next_obj] =
+        bvh_intersect(scene.bvh_pool, scene.objects, offset_hit, ray);
+    // Hit nothing
+
+    if (!next_hit || distance(*next_hit, offset_hit) < 0.001f)
+        return Color();
+
+    // Send ray towards the object
+    return cast_ray(*next_hit, ray, next_obj, scene, depth + 1, next_eta);
 }
 
 Color compute_indirect_rays(Scene& scene, Object* obj, Vector4& normal,
@@ -163,7 +161,6 @@ Color compute_indirect_rays(Scene& scene, Object* obj, Vector4& normal,
     float ab = info->color->colors[BLUE] / 255.f;
 
     normal.normalize();
-    bool one_refracted = false;
 
     // auto V = -(ray + hit);
     // V.normalize();
@@ -197,120 +194,58 @@ Color compute_indirect_rays(Scene& scene, Object* obj, Vector4& normal,
     if (info->kr)
     {
         kr = fresnel(cos_dir_norm, etai, etat);
+        // std::cout << "kr = " << kr << "\nrd = " << rd << "\n";
         next_eta = etat;
-        /*std::cout << "etai = " << etai << "\n";
-        std::cout << "etat = " << etat << "\n";
-        std::cout << "ray = " << ray << "\n";
-        std::cout << "normal = " << normal << "\n";
-        std::cout << "kr = " << kr << "\n";
-        std::cout << "rd = " << rd << "\n";*/
     }
 
-    for (int i = 0; i < NB_RAYS_REFLECTED; i++)
+    uint8_t nb_ray = NB_RAYS_REFLECTED;
+    if (info->ks == 1)
+        nb_ray = 1;
+
+    Vector4 ingoing;
+    Vector4 outgoing;
+    for (int i = 0; i < nb_ray; i++)
     {
-        Vector4 new_ray;
-        if (info->kr && rd > kr)
+        if (info->kr)
+            ingoing = get_ingoing_ray(ray, normal, etai, etat);
+        outgoing = get_outgoing_ray(margin_angle, normal, R);
+
+        Point4 offset_hit_ingoing;
+        Point4 offset_hit_outgoing;
+        Color c_ingoing;
+        Color c_outgoing;
+        if (ingoing * ingoing > 0)
         {
-            if (one_refracted)
-                continue;
-            /*std::cout << "dir = " << dir;
-            std::cout << std::endl << std::endl << std::endl << std::endl;
-            std::cout << "rd = " << rd << std::endl;
-            std::cout << "1 - kr = " << 1 - info->kr << std::endl;
-            std::cout << "refracting = " << (rd > (1 - info->kr)) << std::endl;
-            std::cout << "eta = " << eta << std::endl;
-            std::cout << "next_eta = " << next_eta << std::endl;
-            // std::cout << (dir * normal) << std::endl;
-            // std::cout << eta << std::endl;
-            std::cout << "etai = " << etai << "\n";
-            std::cout << "etat = " << etat << "\n";
-            std::cout << "ray = " << ray << "\n";
-            std::cout << "normal = " << normal << "\n";*/
-            new_ray = get_ingoing_ray(ray, normal, etai, etat);
-            if (new_ray * new_ray == 0)
-                new_ray = get_outgoing_ray(margin_angle, normal, R);
-            else
-            {
-                one_refracted = true;
-                /*std::cout << "hit = " << hit << std::endl;
-                std::cout << "center = " << dynamic_cast<Sphere*>(obj)->center;
-                std::cout << "dir (incident) = " << ray;
-                std::cout << "eta = " << eta << std::endl;
-                std::cout << "normal = " << normal;
-                std::cout << "new_ray (refracted) = " << new_ray;
-                // dot should be negative if new_ray points into the sphere
-                std::cout << "dot(ray, normal) = " << (ray * normal)
-                          << std::endl;
-                std::cout << "dot(new_ray, normal) = " << (new_ray * normal)
-                          << std::endl
-                          << std::endl;*/
-            }
-            /*if (dir.x != new_ray.x || dir.y != new_ray.y || dir.z !=
-            new_ray.z)
-            {
-                std::cout << "dir = " << dir;
-                std::cout << "new ray = " << new_ray << std::endl;
-            }*/
+            offset_hit_ingoing =
+                Point4(hit.x - normal.x * 0.001f, hit.y - normal.y * 0.001f,
+                       hit.z - normal.z * 0.001f);
+            c_ingoing = till_cast_ray(scene, offset_hit_ingoing, ingoing,
+                                      normal, info, depth, next_eta);
+            indirect_r += (c_ingoing.colors[RED] / 255.f) * ar * (1 - kr);
+            indirect_g += (c_ingoing.colors[GREEN] / 255.f) * ag * (1 - kr);
+            indirect_b += (c_ingoing.colors[BLUE] / 255.f) * ab * (1 - kr);
         }
-        else
+        if (outgoing * outgoing > 0)
         {
-            new_ray = get_outgoing_ray(margin_angle, normal, R);
-            // if (info->kr > 0)
-            // std::cout << "rd = " << rd << " kr = " << 1 - info->kr
-            //          << std::endl;
+            offset_hit_outgoing =
+                Point4(hit.x + normal.x * 0.001f, hit.y + normal.y * 0.001f,
+                       hit.z + normal.z * 0.001f);
+            c_outgoing = till_cast_ray(scene, offset_hit_outgoing, outgoing,
+                                       normal, info, depth, next_eta);
+
+            float cos_theta = dot_product(normal, ray);
+            float diffuse_w = info->kd * cos_theta;
+            float specular_w =
+                info->ks; // specular doesn't get attenuated by cos_theta
+
+            float w = diffuse_w + specular_w;
+
+            // std::cout << c_outgoing;
+            indirect_r += (c_outgoing.colors[RED] / 255.f) * w * ar * kr;
+            indirect_g += (c_outgoing.colors[GREEN] / 255.f) * w * ag * kr;
+            indirect_b += (c_outgoing.colors[BLUE] / 255.f) * w * ab * kr;
         }
 
-        Point4 offset_hit(hit.x - normal.x * 0.001f, hit.y - normal.y * 0.001f,
-                          hit.z - normal.z * 0.001f);
-
-        auto [next_hit, next_obj] =
-            bvh_intersect(scene.bvh_pool, scene.objects, offset_hit, new_ray);
-        // Hit nothing
-
-        /*if (eta < 1.0f && one_refracted)
-        {
-            std::cout << "next_hit found = " << (next_hit.has_value())
-                      << std::endl;
-            if (next_hit)
-            {
-                std::cout << "distance = " << distance(*next_hit, offset_hit)
-                          << std::endl;
-                std::cout << "next_obj type = " << typeid(*next_obj).name();
-            }
-        }*/
-        if (!next_hit || distance(*next_hit, offset_hit) < 0.001f)
-            continue;
-
-        float cos_theta = std::max(0.f, dot_product(normal, new_ray));
-        float diffuse_w = info->kd * cos_theta;
-        float specular_w = info->ks; // specular doesn't attenuated by cos_theta
-
-        float w = diffuse_w + specular_w;
-
-        // Send ray towards the object
-        Color incoming =
-            cast_ray(*next_hit, new_ray, next_obj, scene, depth + 1, next_eta);
-        /*if (one_refracted)
-        {
-            std::cout << "next_obj type = " << typeid(*next_obj).name()
-                      << std::endl;
-            std::cout << "incoming = " << incoming;
-            std::cout << "refracted_w = " << refracted_w << std::endl;
-            std::cout << "w = " << w << std::endl;
-            std::cout << "nb_valid = " << nb_valid << std::endl;
-        }*/
-        if (!one_refracted)
-        {
-            indirect_r += (incoming.colors[RED] / 255.f) * w * ar;
-            indirect_g += (incoming.colors[GREEN] / 255.f) * w * ag;
-            indirect_b += (incoming.colors[BLUE] / 255.f) * w * ab;
-        }
-        else
-        {
-            indirect_r += (incoming.colors[RED] / 255.f);
-            indirect_g += (incoming.colors[GREEN] / 255.f);
-            indirect_b += (incoming.colors[BLUE] / 255.f);
-        }
         nb_valid++;
     }
 
@@ -396,6 +331,7 @@ PPM computeScene(Scene& scene, const int& image_h, const int& image_w)
     {
         for (int j = 0; j < image_w; j++)
         {
+            // std::cout << " i = " << i << " j = " << j << "\n";
             // Compute the position of the pixel in the camera plane
             float y = H - (i + 0.5f) * y_incr;
             float x = W - (j + 0.5f) * x_incr;
@@ -454,7 +390,7 @@ int main(int argc, char** argv)
     time_t load_start = std::time(nullptr);
     TextureInfo flat_random{ kd: 0.4, ks: 0.2, color: new Color(68, 164, 112) };
     TextureInfo a{ kd: 0.1f, ks: 0.9f, color: new Color(255, 255, 0) };
-    TextureInfo mat_red{ kd: 0.8f, ks: 0.2, color: new Color(255, 0, 0) };
+    TextureInfo mat_red{ kd: 0.6f, ks: 0.4, color: new Color(255, 0, 0) };
     TextureInfo
     something_text{ kd: 0.3, ks: 0.3, color: new Color(0, 255, 255) };
     LightInfo light;
@@ -482,14 +418,16 @@ int main(int argc, char** argv)
     auto uniform_mat_red = std::make_shared<UniformTexture>(&mat_red);
     auto light_texture = std::make_shared<LightTexture>(&light);
     auto new_text = std::make_shared<UniformTexture>(Color{ 255, 255, 255 }, 0,
-                                                     0, true, 1.5);
+                                                     1, true, 1.5);
+    auto new_textr = std::make_shared<UniformTexture>(Color{ 255, 255, 255 }, 0,
+                                                      1, false, 1.5);
     auto image_texture = std::make_shared<ImageTexture>("image.jpg");
 
     time_t load_textures = std::time(nullptr);
     printTimeTaken(load_textureInfo, load_textures, "while loading textures.");
 
     // Sphere ball1(uniform_mat_red, Point4(5, -5, 15), 4);
-    Sphere light_ball(light_texture, Point4(0, 10, 0), 3);
+    Sphere light_ball(light_texture, Point4(0, 7, 0), 3);
     Sphere light_ball2(light_texture, Point4(0, 0, -10), 3);
 
     time_t load_spheres = std::time(nullptr);
@@ -503,6 +441,7 @@ int main(int argc, char** argv)
 
     Sphere ball1(new_text, Point4(0, -4, 9), 3);
     Sphere ball2(uniform_mat_red, Point4(-5, 0, 12), 2);
+    Sphere ball3(new_textr, Point4(5, 1, 11), 0.5);
     Sphere light_ball1(light_texture, Point4(-20, 10, 10), 4);
     // Sphere light_ball(light_texture, Point4(0, 15, 0), 4);
     // Sphere light_ball1(light_texture, Point4(-20, 10, 10), 4);
@@ -542,7 +481,7 @@ int main(int argc, char** argv)
                                        uniform_flat_green);
     auto top_bound = Mesh::rectangle(Point4(-15, 10, 0), Point4(15, 10, 0),
                                      Point4(15, 10, 20), Point4(-15, 10, 20),
-                                     uniform_flat_red);
+                                     uniform_flat_yellow);
     auto forward_bound = Mesh::rectangle(
         Point4(-15, 10, 20), Point4(15, 10, 20), Point4(15, -10, 20),
         Point4(-15, -10, 20), uniform_flat_cyan);
@@ -562,6 +501,8 @@ int main(int argc, char** argv)
 
     // scene.addObject(light_ball);
     scene.addObject(ball1);
+    scene.addObject(ball2);
+    scene.addObject(ball3);
     /*scene.addObject(triangle1);
     scene.addObject(triangle2);
     scene.addObject(triangle3);
@@ -575,7 +516,7 @@ int main(int argc, char** argv)
     printTimeTaken(load_border, load_end, "while loading Scene.\n");
 
     time_t start = std::time(nullptr);
-    auto img = computeScene(scene, 708, 508);
+    auto img = computeScene(scene, 800, 800);
     time_t end = std::time(nullptr);
     printTimeTaken(start, end, "");
 
