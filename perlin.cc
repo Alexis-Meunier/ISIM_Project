@@ -56,49 +56,46 @@ float perlin(float x, float y, int grid_size, int seed)
     return lerp(lerp(dot00, dot10, u), lerp(dot01, dot11, u), v);
 }
 
-PPM createRandomImage(int sx, int sy, int nb_octaves, float persistence,
+uint8_t computePerlinAtCoord(int x, int y, int nb_octaves, float persistence,
                       float lacunarity, int grid_size)
 {
-    PPM img(sx, sy);
-
-    int nb_col = std::ceil((float)sx / grid_size) + 1;
-    int nb_row = std::ceil((float)sy / grid_size) + 1;
-
     auto frequency = 1.f;
     auto amplitude = 1.f;
     float value = 0.f;
     float maxAmp = 0.f;
 
-    std::vector<float> values(sx * sy, 0.f);
-
     for (int i = 0; i < nb_octaves; i++)
     {
-        for (int y = 0; y < sy; y++)
-        {
-            for (int x = 0; x < sx; x++)
-            {
-                values[y * sx + x] += amplitude * perlin(
-                    x / (float)grid_size * frequency,
-                    y / (float)grid_size * frequency,
-                    1, 42 * i + 1
-                );
-            }
-        }
+        value += amplitude * perlin(
+            x / (float)grid_size * frequency,
+            y / (float)grid_size * frequency,
+            1, 42 * i + 1
+        );
 
         maxAmp  += amplitude;
         amplitude *= persistence;
         frequency *= lacunarity;
     }
 
-    float minV = *std::min_element(values.begin(), values.end());
-    float maxV = *std::max_element(values.begin(), values.end());
+    float normalized = (value + 1) / 2;
+    normalized = std::clamp(normalized, 0.f, 1.f);
+    int gray = (int)(normalized * 255.f);
 
-    for (int i = 0; i < sx * sy; i++)
+    return gray;
+}
+
+PPM createRandomImage(int sx, int sy, int nb_octaves, float persistence,
+                      float lacunarity, int grid_size)
+{
+    PPM img(sx, sy);
+
+    for (int y = 0; y < sy; y++)
     {
-        float normalized = (values[i] - minV) / (maxV - minV);
-        normalized = std::clamp(normalized, 0.f, 1.f);
-        int gray = (int)(normalized * 255.f);
-        img.pixels[i] = Color(gray, gray, gray);
+        for (int x = 0; x < sx; x++)
+        {
+            auto gray = computePerlinAtCoord(x, y, nb_octaves, persistence, lacunarity, grid_size);
+            img.pixels[y * sx + x] = Color(gray, gray, gray);
+        }
     }
 
     return img;
