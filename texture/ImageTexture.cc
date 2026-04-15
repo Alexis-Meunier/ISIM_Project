@@ -6,7 +6,7 @@
 #include <stdexcept>
 
 
-ImageTexture::ImageTexture(const std::string& filepath, float kd, float ks,
+ImageTexture::ImageTexture(const std::string& filepath, bool isLight, float kd, float ks,
                            float ka, float ns)
     : kd(kd), ks(ks), ka(ka), ns(ns)
 {
@@ -24,6 +24,7 @@ ImageTexture::ImageTexture(const std::string& filepath, float kd, float ks,
     cached_info->ks = ks;
     cached_info->lightPower = 0.0f;
     cached_info->color = new Color();
+    this->isLight = isLight;
 }
 
 ImageTexture::~ImageTexture()

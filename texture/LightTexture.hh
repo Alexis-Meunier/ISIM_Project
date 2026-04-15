@@ -2,10 +2,6 @@
 
 #include "texture.hh"
 
-struct LightInfo: public TextureInfo
-{
-};
-
 class LightTexture: public TextureMaterial
 {
 public:

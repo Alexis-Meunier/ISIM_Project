@@ -61,7 +61,6 @@ Color compute_direct_rays(Scene& scene, const Point4& hit, Vector4& normal,
     for (Object* light_obj : scene.lights)
     {
         // Lights array only has lightTexture
-        auto ltex = dynamic_cast<LightTexture*>(light_obj->texture.get());
         // if (!ltex)
         // {
         //     std::cout << "not light\n";
@@ -69,7 +68,7 @@ Color compute_direct_rays(Scene& scene, const Point4& hit, Vector4& normal,
         // }
         // else
         //     std::cout << "Yes light\n";
-        auto li = ltex->get_elements(hit);
+        auto li = light_obj->texture->get_elements(hit);
 
         // Get the center of the light
         auto centroid = light_obj->get_centroid();
@@ -148,16 +147,19 @@ Color compute_indirect_rays(Scene& scene, Object* obj, Vector4& normal,
     else
         eta = previous_eta;
 
+
     auto R = normal * 2.0f * dot_product(normal, for_ref) - for_ref;
     R.normalize();
 
     float indirect_r = 0, indirect_g = 0, indirect_b = 0;
     float margin_angle = get_angle_margin(*info);
     int nb_valid = 0;
+
     // divide refraction index of where we are coming from
     // where we are going
     float next_eta =
         (info->eta == 0 || dot_product(ray, normal) > 0) ? 1.0f : info->eta;
+
     // Send rays to get indirect lighting
     for (int i = 0; i < NB_RAYS_REFLECTED; i++)
     {
@@ -167,22 +169,12 @@ Color compute_indirect_rays(Scene& scene, Object* obj, Vector4& normal,
         {
             if (one_refracted)
                 continue;
-            // std::cout << eta << std::endl;
             new_ray = get_ingoing_ray(ray, normal, eta);
             one_refracted = true;
-            /*if (dir.x != new_ray.x || dir.y != new_ray.y || dir.z !=
-            new_ray.z)
-            {
-                std::cout << "dir = " << dir;
-                std::cout << "new ray = " << new_ray << std::endl;
-            }*/
         }
         else
         {
             new_ray = get_outgoing_ray(margin_angle, normal, R);
-            // if (info->kr > 0)
-            // std::cout << "rd = " << rd << " kr = " << 1 - info->kr
-            //          << std::endl;
         }
 
         Point4 offset_hit(hit.x + new_ray.x * 0.001f,
@@ -230,9 +222,13 @@ Color compute_indirect_rays(Scene& scene, Object* obj, Vector4& normal,
     return Color(indirect_r * 255, indirect_g * 255, indirect_b * 255);
 }
 
-Color compute_light_rays(LightTexture* light_tex, const Point4& hit, int depth)
+Color compute_light_rays(std::shared_ptr<TextureMaterial>& tex, const Point4& hit, int depth)
 {
-    auto li = light_tex->get_elements(hit);
+    auto li = tex->get_elements(hit);
+    // std::cout << "lightPower: " << li->lightPower << std::endl;
+    // std::cout << "red: " << int(li->color->colors[RED]) << std::endl;
+    // std::cout << "green: " << int(li->color->colors[GREEN]) << std::endl;
+    // std::cout << "blue: " << int(li->color->colors[BLUE]) << std::endl;
     return Color(li->color->colors[RED] * li->lightPower,
                  li->color->colors[GREEN] * li->lightPower,
                  li->color->colors[BLUE] * li->lightPower);
@@ -244,15 +240,10 @@ Color cast_ray(const Point4& hit, Vector4& ray, Object* obj, Scene& scene,
     if (depth == MAX_DEPTH)
         return Color(0, 0, 0);
 
-    auto light_tex = dynamic_cast<LightTexture*>(obj->texture.get());
     // The object that was hit is a light
-    if (light_tex != nullptr)
+    if (obj->texture->isLight)
     {
-        return compute_light_rays(light_tex, hit, depth);
-    }
-    if (depth == 0 && obj->texture->isLight)
-    {
-        return *obj->get_texture(hit)->color;
+        return compute_light_rays(obj->texture, hit, depth);
     }
 
     TextureInfo* info = obj->get_texture(hit);
@@ -366,12 +357,12 @@ int main(int argc, char** argv)
     time_t load_start = std::time(nullptr);
 
     TextureInfo mat_red{ kd: 0.8f, ks: 0.2, color: new Color(255, 0, 0) };
-    LightInfo light;
+    TextureInfo light;
     light.kd = 0.5f;
     light.ks = 0.2f;
     light.color = new Color(255, 255, 255);
     light.lightPower = 0.8f;
-    LightInfo stronk_light;
+    TextureInfo stronk_light;
     stronk_light.kd = 0.5f;
     stronk_light.ks = 0.2f;
     stronk_light.color = new Color(255, 255, 255);
@@ -380,33 +371,39 @@ int main(int argc, char** argv)
     time_t load_textureInfo = std::time(nullptr);
     printTimeTaken(load_start, load_textureInfo, "while loading texture Infos.");
 
-    auto sky = std::make_shared<ProceduralTexture>(ProceduralType::CLOUD, 1, 0, 0, 0);
-    auto wood = std::make_shared<ProceduralTexture>(ProceduralType::WOOD, 1, 0, 0, 0);
-    auto uniform_flat_blue = std::make_shared<UniformTexture>(Color(0, 100, 255));
-    auto uniform_flat_green = std::make_shared<UniformTexture>(Color(100, 255, 37));
-    auto uniform_flat_cyan = std::make_shared<UniformTexture>(Color(0, 255, 255));
-    auto uniform_mat_red = std::make_shared<UniformTexture>(&mat_red);
+    auto sky = std::make_shared<ProceduralTexture>(ProceduralType::CLOUD, 1, 0);
+    auto sky_light = std::make_shared<ProceduralTexture>(ProceduralType::CLOUD, 1, 0, 0.8, true);
+    auto wood = std::make_shared<ProceduralTexture>(ProceduralType::WOOD, 1, 0);
+    auto uniform_flat_blue = std::make_shared<UniformTexture>(Color(0, 100, 255), false);
+    auto uniform_flat_green = std::make_shared<UniformTexture>(Color(100, 255, 37), false);
+    auto uniform_flat_cyan = std::make_shared<UniformTexture>(Color(0, 255, 255), false);
+    auto uniform_mat_red = std::make_shared<UniformTexture>(&mat_red, false);
     auto light_texture = std::make_shared<LightTexture>(&light);
     auto stronk_light_texture = std::make_shared<LightTexture>(&stronk_light);
-    // auto image_texture = std::make_shared<ImageTexture>("image.jpg");
+    auto image_texture = std::make_shared<ImageTexture>("image.jpg");
 
     time_t load_textures = std::time(nullptr);
     printTimeTaken(load_textureInfo, load_textures, "while loading textures.");
 
+    auto skull = Mesh::from_obj("skull.obj", uniform_mat_red, Point4(20, -20, 35), 0.7, {-90, 155, 0});
+
     Sphere light_ball(light_texture, Point4(0, 20, 40), 3);
-    // Sphere light_ball2(light_texture, Point4(0, 0, -10), 3);
+    Sphere light_ball2(light_texture, Point4(0, 0, -10), 3);
     // Sphere sky_ball(sky, Point4(-15, 0, 30), 10);
     // Sphere wood_ball(wood, Point4(15, 0, 30), 10);
 
     time_t load_spheres = std::time(nullptr);
     printTimeTaken(load_textures, load_spheres, "while loading spheres.");
 
-
-    auto bot_bound = Mesh::rectangle(Point4(-40, -20, 50), Point4(40, -20, 50), Point4(40, -20, 0), Point4(-40, -20, 0), wood);
-    // auto left_bound = Mesh::rectangle(Point4(-40, 20, -100), Point4(-40, 20, 50), Point4(-40, -20, 50), Point4(-40, -20, -100), uniform_flat_blue);
-    // auto right_bound = Mesh::rectangle(Point4(40, 20, 50), Point4(40, 20, -100), Point4(40, -20, -100), Point4(40, -20, 50), uniform_flat_green);
-    auto top_bound = Mesh::rectangle(Point4(-40, 20, -100), Point4(40, 20, -100), Point4(40, 20, 50), Point4(-40, 20, 50), sky);
-    // auto forward_bound = Mesh::rectangle(Point4(-100, 20, 35), Point4(100, 20, 35), Point4(100, -20, 35), Point4(-100, -20, 35), uniform_flat_cyan);
+    // auto a_bound = Mesh::rectangle(Point4(-25, -5, 50), Point4(-5, -5, 50), Point4(-5, -5, 25), Point4(-25, -5, 25), wood);
+    // auto b_bound = Mesh::rectangle(Point4(-25, -5, 25), Point4(-5, -5, 25), Point4(-5, -20, 25), Point4(-25, -20, 25), wood);
+    // auto c_bound = Mesh::rectangle(Point4(-5, -5, 25), Point4(-5, -5, 50), Point4(-5, -20, 50), Point4(-5, -20, 25), wood);
+    auto bot_bound = Mesh::rectangle(Point4(-40, -20, 50), Point4(40, -20, 50), Point4(40, -20, 0), Point4(-40, -20, 0), image_texture);
+    auto left_bound = Mesh::rectangle(Point4(-40, 20, -100), Point4(-40, 20, 50), Point4(-40, -20, 50), Point4(-40, -20, -100), uniform_flat_cyan);
+    auto right_bound = Mesh::rectangle(Point4(40, 20, 50), Point4(40, 20, -100), Point4(40, -20, -100), Point4(40, -20, 50), uniform_flat_blue);
+    auto top_bound = Mesh::rectangle(Point4(-40, 20, -100), Point4(40, 20, -100), Point4(40, 20, 50), Point4(-40, 20, 50), sky_light);
+    auto forward_bound = Mesh::rectangle(Point4(-100, 20, 35), Point4(100, 20, 35), Point4(100, -20, 35), Point4(-100, -20, 35), uniform_flat_green);
+    auto table = Mesh::cube(Point4(-20, -5, 35), Point4(-5, -5, 35), Point4(-5, -5, 15), Point4(-20, -5, 15), 5, wood);
 
     Vector4 looking_at(0, 0, 1);
     looking_at.normalize();
@@ -415,16 +412,21 @@ int main(int argc, char** argv)
 
     Scene scene;
     scene.setCamera(camera);
-    scene.addLights(light_ball);
+    // scene.addLights(light_ball);
     // scene.addLights(light_ball2, false);
     // scene.addLights(light_tri, false);
     // scene.addObject(wood_ball);
     // scene.addObject(sky_ball);
+    scene.addObject(table);
     scene.addObject(bot_bound);
-    scene.addObject(top_bound);
-    // scene.addObject(right_bound);
-    // scene.addObject(left_bound);
-    // scene.addObject(forward_bound);
+    scene.addLights(top_bound);
+    scene.addObject(right_bound);
+    scene.addObject(left_bound);
+    scene.addObject(forward_bound);
+    scene.addObject(skull);
+    // scene.addObject(a_bound);
+    // scene.addObject(b_bound);
+    // scene.addObject(c_bound);
 
     time_t start = std::time(nullptr);
     auto img = computeScene(scene, 1080, 1080);

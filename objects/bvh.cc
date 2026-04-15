@@ -1,6 +1,7 @@
 #include "bvh.hh"
 
 #include "object.hh"
+#include "mesh.hh"
 
 // https://en.wikipedia.org/wiki/Slab_method
 bool AABB::intersect(const Point4& origin, const Vector4& dir) const
@@ -123,7 +124,11 @@ bvh_intersect(const std::vector<BVHNode>& pool, const std::vector<Object*>& objs
             {
                 best_dist = d;
                 best_hit = hit;
-                best_obj = objs[i];
+                // Return the triangle directly, not the Mesh
+                if (auto me = dynamic_cast<Mesh*>(objs[i]))
+                    best_obj = me->get_last_hit();  // Triangle* is an Object*
+                else
+                    best_obj = objs[i];
             }
         }
 

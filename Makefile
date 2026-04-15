@@ -13,7 +13,7 @@ SKEL_CPP_FILES = objects/sphere.cc \
 				 objects/bvh.cc \
 				 objects/mesh.cc \
 				 moteur.cc \
-				 perlin.cc \
+				 perlin3D.cc \
 				 objects/blob.cc \
 				 camera/camera.cc \
 				 image/image.cc \

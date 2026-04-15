@@ -4,7 +4,7 @@
 
 #include "texture.hh"
 #include "../utils/point4.hh"
-#include "../perlin.hh"
+#include "../perlin3D.hh"
 
 enum ProceduralType
 {
@@ -17,7 +17,7 @@ class ProceduralTexture : public TextureMaterial
 {
 public:
     ProceduralTexture(ProceduralType type, float kd = 0.8f, float ks = 0.2f,
-                 float ka = 0.1f, float ns = 32.0f);
+                 float lightPower = 0.8f, bool isLight = false);
     TextureInfo *get_elements(Point4 position) override;
 
     ProceduralType type;
