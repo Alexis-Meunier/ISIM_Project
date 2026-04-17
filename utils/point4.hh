@@ -13,6 +13,7 @@ public:
     void rotateX(const float& angle);
     void rotateY(const float& angle);
     void rotateZ(const float& angle);
+    float distance(const Point4& other) const;
 
     // Arithmetic
     const Point4 operator+(const Point4& p) const;
@@ -20,7 +21,6 @@ public:
     const Point4 operator*(const double& scalar) const; // Translation
     const float operator*(const Point4& p) const; // Dot product
     Point4& operator=(const Point4& v);
-
 
     // Debugging
     std::ostream& operator<<(std::ostream& os);
@@ -35,6 +35,7 @@ public:
     float i;
 };
 
+std::ostream& operator<<(std::ostream& out, const Point4& vect);
 /**
  * Returns the euclidian norm/Distance between two points
  *
