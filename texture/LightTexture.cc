@@ -15,6 +15,7 @@ LightTexture::LightTexture()
     textInfo->color = new Color();
     info = textInfo;
     textInfo->lightPower = 0;
+    isLight = true;
 }
 
 LightTexture::LightTexture(const Color& color)
@@ -27,14 +28,17 @@ LightTexture::LightTexture(const Color& color)
     textInfo->color = new Color(color);
     info = textInfo;
     textInfo->lightPower = 0;
+    isLight = true;
 }
 
 LightTexture::LightTexture(TextureInfo* info)
 {
     this->info = info;
+    isLight = true;
 }
 
 LightTexture::LightTexture(const LightTexture& info)
 {
     this->info = info.info;
+    isLight = true;
 }

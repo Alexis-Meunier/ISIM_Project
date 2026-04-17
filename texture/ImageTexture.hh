@@ -8,7 +8,7 @@ class ImageTexture : public TextureMaterial
 {
 public:
     ImageTexture() = default;
-    ImageTexture(const std::string& filepath, float kd = 0.8f, float ks = 0.2f,
+    ImageTexture(const std::string& filepath, bool isLight = false, float kd = 0.8f, float ks = 0.2f,
                  float ka = 0.1f, float ns = 32.0f);
     ~ImageTexture();
 

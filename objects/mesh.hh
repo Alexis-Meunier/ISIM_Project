@@ -16,10 +16,17 @@ class Mesh : public Object
 {
 public:
     static Mesh rectangle(
-        const Point4& bot_left,
-        const Point4& bot_right,
-        const Point4& top_right,
         const Point4& top_left,
+        const Point4& top_right,
+        const Point4& bot_right,
+        const Point4& bot_left,
+        const std::shared_ptr<TextureMaterial>& texture);
+    static Mesh cube(
+        const Point4& top_left,
+        const Point4& top_right,
+        const Point4& bot_right,
+        const Point4& bot_left,
+        const float& height,
         const std::shared_ptr<TextureMaterial>& texture);
 
     static Mesh from_obj(const std::string& path,
@@ -32,7 +39,7 @@ public:
     AABB get_bounds() const override;
     Point4 get_centroid() const override;
     AABB compute_mesh_bounds();
-
+    Triangle* get_last_hit() const { return last_hit; };
 
 private:
     void build_bvh();

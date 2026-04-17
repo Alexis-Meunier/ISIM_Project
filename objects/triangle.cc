@@ -4,6 +4,7 @@
 
 #include "../texture/UniformTexture.hh"
 #include "../texture/ImageTexture.hh"
+#include "../texture/ProceduralTexture.hh"
 
 AABB Triangle::compute_my_bounds()
 {
@@ -112,7 +113,13 @@ TextureInfo *Triangle::get_texture(const Point4& p)
 {
     auto im = dynamic_cast<ImageTexture*>(texture.get());
     if (!im)
-        return texture->get_elements(p);
+    {
+        auto proc = dynamic_cast<ProceduralTexture*>(texture.get());
+        if (!proc)
+            return texture->get_elements(p);
+
+        return proc->get_elements(p);
+    }
 
     float u = last_w0 * uv1.u + last_w1 * uv2.u + last_w2 * uv3.u;
     float v = last_w0 * uv1.v + last_w1 * uv2.v + last_w2 * uv3.v;

@@ -15,9 +15,10 @@ UniformTexture::UniformTexture()
     textInfo->color = new Color();
     info = textInfo;
     textInfo->lightPower = 0;
+    isLight = false;
 }
 
-UniformTexture::UniformTexture(const Color& color)
+UniformTexture::UniformTexture(const Color& color, bool isLight)
 {
     TextureInfo* textInfo = new TextureInfo();
     textInfo->kd = 1;
@@ -27,9 +28,10 @@ UniformTexture::UniformTexture(const Color& color)
     textInfo->color = new Color(color);
     info = textInfo;
     textInfo->lightPower = 0;
+    this->isLight = isLight;
 }
 
-UniformTexture::UniformTexture(const Color& color, float kd, float ks)
+UniformTexture::UniformTexture(const Color& color, float kd, float ks, bool isLight)
 {
     TextureInfo* textInfo = new TextureInfo();
     textInfo->kd = kd;
@@ -39,10 +41,11 @@ UniformTexture::UniformTexture(const Color& color, float kd, float ks)
     textInfo->color = new Color(color);
     info = textInfo;
     textInfo->lightPower = 0;
+    this->isLight = isLight;
 }
 
 UniformTexture::UniformTexture(const Color& color, float kd, float ks, bool kr,
-                               float eta)
+                               float eta, bool isLight)
 {
     TextureInfo* textInfo = new TextureInfo();
     textInfo->kd = kd;
@@ -52,14 +55,17 @@ UniformTexture::UniformTexture(const Color& color, float kd, float ks, bool kr,
     textInfo->color = new Color(color);
     info = textInfo;
     textInfo->lightPower = 0;
+    this->isLight = isLight;
 }
 
-UniformTexture::UniformTexture(TextureInfo* info)
+UniformTexture::UniformTexture(TextureInfo* info, bool isLight)
 {
     this->info = info;
+    this->isLight = isLight;
 }
 
-UniformTexture::UniformTexture(const UniformTexture& info)
+UniformTexture::UniformTexture(const UniformTexture& info, bool isLight)
 {
     this->info = info.info;
+    this->isLight = isLight;
 }

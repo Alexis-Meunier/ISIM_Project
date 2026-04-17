@@ -24,6 +24,101 @@ Mesh Mesh::rectangle(
     m.triangles.push_back(t1);
     m.triangles.push_back(t2);
 
+    m.texture = texture;
+    m.build_bvh();
+    return m;
+}
+
+Mesh Mesh::cube(
+    const Point4& top_left,  const Point4& top_right,
+    const Point4& bot_right, const Point4& bot_left,
+    const float& height,
+    const std::shared_ptr<TextureMaterial>& texture)
+{
+    Mesh m;
+
+    auto diff = Point4(0, height, 0);
+
+    // top
+    Triangle *t1 = new Triangle(top_left, top_right, bot_left, texture);
+    t1->uv1 = {0.f, 1.f};
+    t1->uv2 = {1.f, 1.f};
+    t1->uv3 = {0.f, 0.f};
+
+    Triangle *t2 = new Triangle(top_right, bot_right, bot_left, texture);
+    t2->uv1 = {1.f, 1.f};
+    t2->uv2 = {1.f, 0.f};
+    t2->uv3 = {0.f, 0.f};
+
+    // front
+    Triangle *t3 = new Triangle(bot_left, bot_right, bot_left - diff, texture);
+    t1->uv1 = {0.f, 1.f};
+    t1->uv2 = {1.f, 1.f};
+    t1->uv3 = {0.f, 0.f};
+
+    Triangle *t4 = new Triangle(bot_right, bot_right - diff, bot_left - diff, texture);
+    t2->uv1 = {1.f, 1.f};
+    t2->uv2 = {1.f, 0.f};
+    t2->uv3 = {0.f, 0.f};
+
+    // right
+    Triangle *t5 = new Triangle(bot_right, top_right, bot_right - diff, texture);
+    t1->uv1 = {0.f, 1.f};
+    t1->uv2 = {1.f, 1.f};
+    t1->uv3 = {0.f, 0.f};
+
+    Triangle *t6 = new Triangle(top_right, top_right - diff, bot_right - diff, texture);
+    t2->uv1 = {1.f, 1.f};
+    t2->uv2 = {1.f, 0.f};
+    t2->uv3 = {0.f, 0.f};
+
+    // left
+    Triangle *t7 = new Triangle(top_left, bot_left, top_left - diff, texture);
+    t1->uv1 = {0.f, 1.f};
+    t1->uv2 = {1.f, 1.f};
+    t1->uv3 = {0.f, 0.f};
+
+    Triangle *t8 = new Triangle(bot_left, bot_left - diff, top_left - diff, texture);
+    t2->uv1 = {1.f, 1.f};
+    t2->uv2 = {1.f, 0.f};
+    t2->uv3 = {0.f, 0.f};
+
+    // bot
+    Triangle *t9 = new Triangle(top_right - diff, top_left - diff, bot_left - diff, texture);
+    t1->uv1 = {0.f, 1.f};
+    t1->uv2 = {1.f, 1.f};
+    t1->uv3 = {0.f, 0.f};
+
+    Triangle *t10 = new Triangle(bot_right - diff, top_right - diff, bot_left - diff, texture);
+    t2->uv1 = {1.f, 1.f};
+    t2->uv2 = {1.f, 0.f};
+    t2->uv3 = {0.f, 0.f};
+
+    // back
+    Triangle *t11 = new Triangle(top_right, top_left, top_left - diff, texture);
+    t1->uv1 = {0.f, 1.f};
+    t1->uv2 = {1.f, 1.f};
+    t1->uv3 = {0.f, 0.f};
+
+    Triangle *t12 = new Triangle(top_right, top_left - diff, top_right - diff, texture);
+    t2->uv1 = {1.f, 1.f};
+    t2->uv2 = {1.f, 0.f};
+    t2->uv3 = {0.f, 0.f};
+
+    m.triangles.push_back(t1);
+    m.triangles.push_back(t2);
+    m.triangles.push_back(t3);
+    m.triangles.push_back(t4);
+    m.triangles.push_back(t5);
+    m.triangles.push_back(t6);
+    m.triangles.push_back(t7);
+    m.triangles.push_back(t8);
+    m.triangles.push_back(t9);
+    m.triangles.push_back(t10);
+    m.triangles.push_back(t11);
+    m.triangles.push_back(t12);
+
+    m.texture = texture;
     m.build_bvh();
     return m;
 }

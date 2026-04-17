@@ -20,9 +20,11 @@
 #include "texture/ImageTexture.hh"
 #include "texture/LightTexture.hh"
 #include "texture/UniformTexture.hh"
+#include "texture/ProceduralTexture.hh"
 #include "utils/console.hh"
 #include "utils/scene.hh"
 #include "utils/vector4.hh"
+#include "perlin.hh"
 
 template <typename T, typename U>
 using pair = std::pair<T, U>;

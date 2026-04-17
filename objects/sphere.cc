@@ -4,6 +4,7 @@
 
 #include "../texture/UniformTexture.hh"
 #include "../texture/ImageTexture.hh"
+#include "../texture/ProceduralTexture.hh"
 
 Sphere::Sphere()
 {
@@ -107,13 +108,34 @@ Vector4 Sphere::get_normal(const Point4& intersection)
     return Vector4(intersection.x - center.x, intersection.y - center.y, intersection.z - center.z);
 }
 
-TextureInfo *Sphere::get_texture(const Point4& v)
+TextureInfo *Sphere::get_texture(const Point4& p)
 {
+    float nx = (p.x - center.x) / radius;
+    float nz = (p.z - center.z) / radius;
+
+    float phi = std::atan2(nz, nx);;
+    float theta = std::acos(nz);
+
+    float u = (phi + M_PI) / (2.0f * M_PI);
+    float v = theta / M_PI;
+
     auto im = dynamic_cast<ImageTexture*>(texture.get());
     if (!im)
-        return texture->get_elements(v);
+    {
+        auto proc = dynamic_cast<ProceduralTexture*>(texture.get());
+        if (!proc)
+            return texture->get_elements(p);
 
-    auto val = im->get_elements_sphere(v, center, radius);
+        Vector4 vec = Vector4(p - center);
+        vec.normalize();
+
+        float u = 0.5 + atan2(vec.z, vec.x) / (2 * M_PI);
+        float v = 0.5 - asin(vec.y) / M_PI;
+
+        return proc->get_elements(Point4(u * 1000, 0, v * 1000));
+    }
+
+    auto val = im->get_elements_uv(u, v);
     return val;
 }
 
