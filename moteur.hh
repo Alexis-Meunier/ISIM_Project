@@ -16,6 +16,7 @@
 #include "objects/mesh.hh"
 #include "objects/sphere.hh"
 #include "objects/triangle.hh"
+#include "objects/blob.hh"
 #include "texture/ImageTexture.hh"
 #include "texture/LightTexture.hh"
 #include "texture/UniformTexture.hh"

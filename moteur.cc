@@ -393,11 +393,12 @@ int main(int argc, char** argv)
     TextureInfo mat_red{ kd: 0.6f, ks: 0.4, color: new Color(255, 0, 0) };
     TextureInfo
     something_text{ kd: 0.3, ks: 0.3, color: new Color(0, 255, 255) };
+    TextureInfo mat_red{ kd: 0.8f, ks: 0.2, color: new Color(255, 0, 0) };
     LightInfo light;
     light.kd = 0.5f;
     light.ks = 0.2f;
     light.color = new Color(255, 255, 255);
-    light.lightPower = 1.0f;
+    light.lightPower = 0.8f;
 
     time_t load_textureInfo = std::time(nullptr);
     printTimeTaken(load_start, load_textureInfo,
@@ -422,12 +423,23 @@ int main(int argc, char** argv)
     auto new_textr = std::make_shared<UniformTexture>(Color{ 255, 255, 255 }, 0,
                                                       1, false, 1.5);
     auto image_texture = std::make_shared<ImageTexture>("image.jpg");
+    printTimeTaken(load_start, load_textureInfo, "while loading texture Infos.");
+
+    // // auto uniform_flat_white = std::make_shared<UniformTexture>(Color(255, 255, 255));
+    auto uniform_flat_red = std::make_shared<UniformTexture>(Color(182, 35, 48));
+    // auto uniform_flat_blue = std::make_shared<UniformTexture>(Color(82, 41, 214));
+    // auto uniform_flat_green = std::make_shared<UniformTexture>(Color(83, 172, 89));
+    // auto uniform_flat_cyan = std::make_shared<UniformTexture>(Color(94, 154, 161)); //5e9aa1
+    auto uniform_mat_red = std::make_shared<UniformTexture>(&mat_red);
+    auto light_texture = std::make_shared<LightTexture>(&light);
+    // auto image_texture = std::make_shared<ImageTexture>("image.jpg");
 
     time_t load_textures = std::time(nullptr);
     printTimeTaken(load_textureInfo, load_textures, "while loading textures.");
 
     // Sphere ball1(uniform_mat_red, Point4(5, -5, 15), 4);
     Sphere light_ball(light_texture, Point4(0, 7, 0), 3);
+    Sphere light_ball(light_texture, Point4(0, 20, 40), 3);
     Sphere light_ball2(light_texture, Point4(0, 0, -10), 3);
 
     time_t load_spheres = std::time(nullptr);
@@ -496,7 +508,78 @@ int main(int argc, char** argv)
     scene.addObject(left_bound);
     scene.addObject(forward_bound);
 
-    // scene.addObject(car);
+    Vector4 looking_at(0, 0, 1);
+    looking_at.normalize();
+    Camera camera(Point4(0, 0, 0), looking_at, Vector4(0, 1, 0), 45, 45,
+                  Point4(0, 0, 5));
+
+    // auto car = Mesh::from_obj("plant.obj", uniform_mat_red, Point4(0, -20, 20), 1.7);
+    // auto skull = Mesh::from_obj("skull.obj", uniform_mat_red, Point4(20, -20, 35), 0.7, {-90, 155, 0});
+
+    // time_t load_obj = std::time(nullptr);
+    // printTimeTaken(load_spheres, load_obj, "while loading .obj files.");
+
+    // auto bot_bound = Mesh::rectangle(Point4(-40, -20, 50), Point4(40, -20, 50), Point4(40, -20, 0), Point4(-40, -20, 0), image_texture);
+    // auto left_bound = Mesh::rectangle(Point4(-40, 20, -100), Point4(-40, 20, 50), Point4(-40, -20, 50), Point4(-40, -20, -100), uniform_flat_blue);
+    // auto right_bound = Mesh::rectangle(Point4(40, 20, 50), Point4(40, 20, -100), Point4(40, -20, -100), Point4(40, -20, 50), uniform_flat_green);
+    // auto top_bound = Mesh::rectangle(Point4(-40, 20, -100), Point4(40, 20, -100), Point4(40, 20, 50), Point4(-40, 20, 50), uniform_flat_red);
+    // auto forward_bound = Mesh::rectangle(Point4(-100, 20, 35), Point4(100, 20, 35), Point4(100, -20, 35), Point4(-100, -20, 35), uniform_flat_cyan);
+
+    // time_t load_border = std::time(nullptr);
+    // printTimeTaken(load_obj, load_border, "while loading borders.");
+
+
+    Blob blob;
+    blob.cube = Cube();
+    blob.cube.points[0] = Point4(-20, -20, 20);
+    blob.cube.points[1] = Point4(20, -20, 20);
+    blob.cube.points[2] = Point4(20, -20, 60);
+    blob.cube.points[3] = Point4(-20, -20, 60);
+    blob.cube.points[4] = Point4(-20, 20, 20);
+    blob.cube.points[5] = Point4(20, 20, 20);
+    blob.cube.points[6] = Point4(20, 20, 60);
+    blob.cube.points[7] = Point4(-20, 20, 60);
+
+    blob.add_potential_point(Point4(3, 0, 30));
+    blob.add_potential_point(Point4(-3, 0, 30));
+    blob.threshold = 0.6f;
+    blob.d = 0.5f;
+
+    auto triangles = blob.marching_cubes();
+
+    Sphere s0(uniform_mat_red, blob.cube.points[0], 1);
+    Sphere s1(uniform_mat_red, blob.cube.points[1], 1);
+    Sphere s2(uniform_mat_red, blob.cube.points[2], 1);
+    Sphere s3(uniform_mat_red, blob.cube.points[3], 1);
+    Sphere s4(uniform_mat_red, blob.cube.points[4], 1);
+    Sphere s5(uniform_mat_red, blob.cube.points[5], 1);
+    Sphere s6(uniform_mat_red, blob.cube.points[6], 1);
+    Sphere s7(uniform_mat_red, blob.cube.points[7], 1);
+
+    Scene scene;
+    scene.addObject(s0);
+    scene.addObject(s1);
+    scene.addObject(s2);
+    scene.addObject(s3);
+    scene.addObject(s4);
+    scene.addObject(s5);
+    scene.addObject(s6);
+    scene.addObject(s7);
+
+    std::cout << triangles.size() << std::endl;
+    for (auto& tri : triangles)
+    {
+        tri.texture = uniform_flat_red;
+        scene.addObject(tri);
+    }
+
+    // scene.addObject(bot_bound);
+    // scene.addObject(top_bound);
+    // scene.addObject(right_bound);
+    // scene.addObject(left_bound);
+    // scene.addObject(forward_bound);
+
+    // // scene.addObject(car);
     // scene.addObject(skull);
 
     // scene.addObject(light_ball);
@@ -508,15 +591,15 @@ int main(int argc, char** argv)
     scene.addObject(triangle3);
     scene.addObject(light_ball);*/
     scene.addLights(light_ball);
+    scene.addLights(light_ball2);
     // scene.addObject(light_ball2);
-    // scene.addLights(light_ball2);
     scene.setCamera(camera);
 
-    time_t load_end = std::time(nullptr);
-    printTimeTaken(load_border, load_end, "while loading Scene.\n");
+    // time_t load_end = std::time(nullptr);
+    // printTimeTaken(load_border, load_end, "while loading Scene.\n");
 
     time_t start = std::time(nullptr);
-    auto img = computeScene(scene, 800, 800);
+    auto img = computeScene(scene, 1080, 1080);
     time_t end = std::time(nullptr);
     printTimeTaken(start, end, "");
 
