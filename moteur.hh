@@ -13,18 +13,18 @@
 #include "image/image.hh"
 #include "light/circle_light.hh"
 #include "light/point_light.hh"
+#include "objects/blob.hh"
 #include "objects/mesh.hh"
 #include "objects/sphere.hh"
 #include "objects/triangle.hh"
-#include "objects/blob.hh"
+#include "perlin3D.hh"
 #include "texture/ImageTexture.hh"
 #include "texture/LightTexture.hh"
-#include "texture/UniformTexture.hh"
 #include "texture/ProceduralTexture.hh"
+#include "texture/UniformTexture.hh"
 #include "utils/console.hh"
 #include "utils/scene.hh"
 #include "utils/vector4.hh"
-#include "perlin.hh"
 
 template <typename T, typename U>
 using pair = std::pair<T, U>;

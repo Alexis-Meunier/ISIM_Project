@@ -12,7 +12,6 @@ SKEL_CPP_FILES = objects/sphere.cc \
 				 objects/triangle.cc \
 				 objects/bvh.cc \
 				 objects/mesh.cc \
-				 objects/blob.cc \
 				 moteur.cc \
 				 perlin3D.cc \
 				 objects/blob.cc \

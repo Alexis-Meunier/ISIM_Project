@@ -266,7 +266,8 @@ Color compute_indirect_rays(Scene& scene, Object* obj, Vector4& normal,
     return Color(indirect_r * 255, indirect_g * 255, indirect_b * 255);
 }
 
-Color compute_light_rays(std::shared_ptr<TextureMaterial>& tex, const Point4& hit, int depth)
+Color compute_light_rays(std::shared_ptr<TextureMaterial>& light_tex,
+                         const Point4& hit, int depth)
 {
     // Only consider the first depth, further depths will be handled later
     auto li = light_tex->get_elements(hit);
@@ -386,13 +387,12 @@ PPM computeScene(Scene& scene, const int& image_h, const int& image_w)
 
 int main(int argc, char** argv)
 {
-
     // time_t load_border = std::time(nullptr);
     // printTimeTaken(load_obj, load_border, "while loading borders.");
 
     if (argc != 2)
     {
-        std::cerr << "Usage: ./tp1 <filename>" << std::endl;
+        std::cerr << "Usage: ./main <filename>" << std::endl;
         return 1;
     }
 
@@ -403,7 +403,6 @@ int main(int argc, char** argv)
     TextureInfo mat_red{ kd: 0.6f, ks: 0.4, color: new Color(255, 0, 0) };
     TextureInfo
     something_text{ kd: 0.3, ks: 0.3, color: new Color(0, 255, 255) };
-    TextureInfo mat_red{ kd: 0.8f, ks: 0.2, color: new Color(255, 0, 0) };
     TextureInfo light;
     light.kd = 0.5f;
     light.ks = 0.2f;
@@ -421,32 +420,22 @@ int main(int argc, char** argv)
 
     // auto uniform_flat_white = std::make_shared<UniformTexture>(Color(255,
     // 255, 255));
-    auto uniform_flat_red =
-        std::make_shared<UniformTexture>(Color(182, 35, 48));
-    auto uniform_flat_yellow =
-        std::make_shared<UniformTexture>(Color(175, 175, 38));
-    auto uniform_flat_blue =
-        std::make_shared<UniformTexture>(Color(82, 41, 214));
-    auto uniform_flat_green =
-        std::make_shared<UniformTexture>(Color(83, 172, 89));
-    auto uniform_flat_cyan =
-        std::make_shared<UniformTexture>(Color(94, 154, 161)); // 5e9aa1
-    auto uniform_mat_red = std::make_shared<UniformTexture>(&mat_red);
-    auto light_texture = std::make_shared<LightTexture>(&light);
     auto new_text = std::make_shared<UniformTexture>(Color{ 255, 255, 255 }, 0,
                                                      1, true, 1.5);
     auto new_textr = std::make_shared<UniformTexture>(Color{ 255, 255, 255 }, 0,
                                                       1, false, 1.5);
-    auto image_texture = std::make_shared<ImageTexture>("image.jpg");
-    printTimeTaken(load_start, load_textureInfo, "while loading texture Infos.");
 
     auto sky = std::make_shared<ProceduralTexture>(ProceduralType::CLOUD, 1, 0);
-    auto sky_light = std::make_shared<ProceduralTexture>(ProceduralType::CLOUD, 1, 0, 0.8, true);
+    auto sky_light = std::make_shared<ProceduralTexture>(ProceduralType::CLOUD,
+                                                         1, 0, 0.8, true);
     auto wood = std::make_shared<ProceduralTexture>(ProceduralType::WOOD, 1, 0);
-    auto uniform_flat_blue = std::make_shared<UniformTexture>(Color(0, 100, 255), false);
-    auto uniform_flat_green = std::make_shared<UniformTexture>(Color(100, 255, 37), false);
-    auto uniform_flat_cyan = std::make_shared<UniformTexture>(Color(0, 255, 255), false);
-    auto uniform_mat_red = std::make_shared<UniformTexture>(&mat_red, false);
+    auto uniform_flat_blue =
+        std::make_shared<UniformTexture>(Color(0, 100, 255));
+    auto uniform_flat_green =
+        std::make_shared<UniformTexture>(Color(100, 255, 37));
+    auto uniform_flat_cyan =
+        std::make_shared<UniformTexture>(Color(0, 255, 255));
+    auto uniform_mat_red = std::make_shared<UniformTexture>(&mat_red);
     auto light_texture = std::make_shared<LightTexture>(&light);
     auto stronk_light_texture = std::make_shared<LightTexture>(&stronk_light);
     auto image_texture = std::make_shared<ImageTexture>("image.jpg");
@@ -454,11 +443,11 @@ int main(int argc, char** argv)
     time_t load_textures = std::time(nullptr);
     printTimeTaken(load_textureInfo, load_textures, "while loading textures.");
 
-    auto skull = Mesh::from_obj("skull.obj", uniform_mat_red, Point4(20, -20, 35), 0.7, {-90, 155, 0});
+    auto skull = Mesh::from_obj("skull.obj", uniform_mat_red,
+                                Point4(20, -20, 35), 0.7, { -90, 155, 0 });
 
     // Sphere ball1(uniform_mat_red, Point4(5, -5, 15), 4);
     Sphere light_ball(light_texture, Point4(0, 7, 0), 3);
-    Sphere light_ball(light_texture, Point4(0, 20, 40), 3);
     Sphere light_ball2(light_texture, Point4(0, 0, -10), 3);
     // Sphere sky_ball(sky, Point4(-15, 0, 30), 10);
     // Sphere wood_ball(wood, Point4(15, 0, 30), 10);
@@ -492,9 +481,6 @@ int main(int argc, char** argv)
     // PointLight bot_light(Point4(3, 0, 2), 0.6);
     // CircleLight circle_light(Point4(18, -5, 8), 0.6, 3, Point4(-7, 8, 6));
 
-    Camera camera(Point4(0, 0, 3), Vector4(0, 0, 1), Vector4(0, 1, 0), 45, 45,
-                  Point4(0, 0, 5));
-
     /*auto car =
         Mesh::from_obj("plant.obj", uniform_mat_red, Point4(0, -20, 20), 1.7);
     auto skull = Mesh::from_obj("skull.obj", uniform_mat_red,
@@ -503,41 +489,29 @@ int main(int argc, char** argv)
     time_t load_obj = std::time(nullptr);
     printTimeTaken(load_spheres, load_obj, "while loading .obj files.");
 
+    // auto a_bound = Mesh::rectangle(Point4(-25, -5, 50), Point4(-5, -5, 50),
+    // Point4(-5, -5, 25), Point4(-25, -5, 25), wood); auto b_bound =
+    // Mesh::rectangle(Point4(-25, -5, 25), Point4(-5, -5, 25), Point4(-5, -20,
+    // 25), Point4(-25, -20, 25), wood); auto c_bound =
+    // Mesh::rectangle(Point4(-5, -5, 25), Point4(-5, -5, 50), Point4(-5, -20,
+    // 50), Point4(-5, -20, 25), wood);
     auto bot_bound =
-        Mesh::rectangle(Point4(-15, -10, 20), Point4(15, -10, 20),
-                        Point4(15, -10, 0), Point4(-15, -10, 0), image_texture);
-    auto left_bound = Mesh::rectangle(Point4(-15, 10, 0), Point4(-15, 10, 20),
-                                      Point4(-15, -10, 20), Point4(-15, -10, 0),
-                                      uniform_flat_blue);
-    auto right_bound = Mesh::rectangle(Point4(15, 10, 20), Point4(15, 10, 0),
-                                       Point4(15, -10, 0), Point4(15, -10, 20),
-                                       uniform_flat_green);
-    auto top_bound = Mesh::rectangle(Point4(-15, 10, 0), Point4(15, 10, 0),
-                                     Point4(15, 10, 20), Point4(-15, 10, 20),
-                                     uniform_flat_yellow);
+        Mesh::rectangle(Point4(-40, -20, 50), Point4(40, -20, 50),
+                        Point4(40, -20, 0), Point4(-40, -20, 0), image_texture);
+    auto left_bound = Mesh::rectangle(
+        Point4(-40, 20, -100), Point4(-40, 20, 50), Point4(-40, -20, 50),
+        Point4(-40, -20, -100), uniform_flat_cyan);
+    auto right_bound = Mesh::rectangle(Point4(40, 20, 50), Point4(40, 20, -100),
+                                       Point4(40, -20, -100),
+                                       Point4(40, -20, 50), uniform_flat_blue);
+    auto top_bound =
+        Mesh::rectangle(Point4(-40, 20, -100), Point4(40, 20, -100),
+                        Point4(40, 20, 50), Point4(-40, 20, 50), sky_light);
     auto forward_bound = Mesh::rectangle(
-        Point4(-15, 10, 20), Point4(15, 10, 20), Point4(15, -10, 20),
-        Point4(-15, -10, 20), uniform_flat_cyan);
-
-    time_t load_border = std::time(nullptr);
-    printTimeTaken(load_obj, load_border, "while loading borders.");
-
-    Scene scene;
-    scene.addObject(bot_bound);
-    scene.addObject(top_bound);
-    scene.addObject(right_bound);
-    scene.addObject(left_bound);
-    scene.addObject(forward_bound);
-
-    // auto a_bound = Mesh::rectangle(Point4(-25, -5, 50), Point4(-5, -5, 50), Point4(-5, -5, 25), Point4(-25, -5, 25), wood);
-    // auto b_bound = Mesh::rectangle(Point4(-25, -5, 25), Point4(-5, -5, 25), Point4(-5, -20, 25), Point4(-25, -20, 25), wood);
-    // auto c_bound = Mesh::rectangle(Point4(-5, -5, 25), Point4(-5, -5, 50), Point4(-5, -20, 50), Point4(-5, -20, 25), wood);
-    auto bot_bound = Mesh::rectangle(Point4(-40, -20, 50), Point4(40, -20, 50), Point4(40, -20, 0), Point4(-40, -20, 0), image_texture);
-    auto left_bound = Mesh::rectangle(Point4(-40, 20, -100), Point4(-40, 20, 50), Point4(-40, -20, 50), Point4(-40, -20, -100), uniform_flat_cyan);
-    auto right_bound = Mesh::rectangle(Point4(40, 20, 50), Point4(40, 20, -100), Point4(40, -20, -100), Point4(40, -20, 50), uniform_flat_blue);
-    auto top_bound = Mesh::rectangle(Point4(-40, 20, -100), Point4(40, 20, -100), Point4(40, 20, 50), Point4(-40, 20, 50), sky_light);
-    auto forward_bound = Mesh::rectangle(Point4(-100, 20, 35), Point4(100, 20, 35), Point4(100, -20, 35), Point4(-100, -20, 35), uniform_flat_green);
-    auto table = Mesh::cube(Point4(-20, -5, 35), Point4(-5, -5, 35), Point4(-5, -5, 15), Point4(-20, -5, 15), 5, wood);
+        Point4(-100, 20, 35), Point4(100, 20, 35), Point4(100, -20, 35),
+        Point4(-100, -20, 35), uniform_flat_green);
+    auto table = Mesh::cube(Point4(-20, -5, 35), Point4(-5, -5, 35),
+                            Point4(-5, -5, 15), Point4(-20, -5, 15), 5, wood);
 
     Vector4 looking_at(0, 0, 1);
     looking_at.normalize();
@@ -545,21 +519,6 @@ int main(int argc, char** argv)
                   Point4(0, 0, 5));
 
     Scene scene;
-    scene.addObject(s0);
-    scene.addObject(s1);
-    scene.addObject(s2);
-    scene.addObject(s3);
-    scene.addObject(s4);
-    scene.addObject(s5);
-    scene.addObject(s6);
-    scene.addObject(s7);
-
-    std::cout << triangles.size() << std::endl;
-    for (auto& tri : triangles)
-    {
-        tri.texture = uniform_flat_red;
-        scene.addObject(tri);
-    }
 
     // scene.addObject(bot_bound);
     // scene.addObject(top_bound);
