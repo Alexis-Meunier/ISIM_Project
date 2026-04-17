@@ -10,7 +10,7 @@ UniformTexture::UniformTexture()
     TextureInfo* textInfo = new TextureInfo();
     textInfo->kd = 1;
     textInfo->ks = 0;
-    textInfo->kr = 0;
+    textInfo->kr = false;
     textInfo->eta = 0;
     textInfo->color = new Color();
     info = textInfo;
@@ -23,7 +23,7 @@ UniformTexture::UniformTexture(const Color& color, bool isLight)
     TextureInfo* textInfo = new TextureInfo();
     textInfo->kd = 1;
     textInfo->ks = 0;
-    textInfo->kr = 0;
+    textInfo->kr = false;
     textInfo->eta = 0;
     textInfo->color = new Color(color);
     info = textInfo;
@@ -36,7 +36,7 @@ UniformTexture::UniformTexture(const Color& color, float kd, float ks, bool isLi
     TextureInfo* textInfo = new TextureInfo();
     textInfo->kd = kd;
     textInfo->ks = ks;
-    textInfo->kr = 0;
+    textInfo->kr = false;
     textInfo->eta = 0;
     textInfo->color = new Color(color);
     info = textInfo;
@@ -44,7 +44,7 @@ UniformTexture::UniformTexture(const Color& color, float kd, float ks, bool isLi
     this->isLight = isLight;
 }
 
-UniformTexture::UniformTexture(const Color& color, float kd, float ks, float kr,
+UniformTexture::UniformTexture(const Color& color, float kd, float ks, bool kr,
                                float eta, bool isLight)
 {
     TextureInfo* textInfo = new TextureInfo();

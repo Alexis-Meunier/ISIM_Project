@@ -14,8 +14,10 @@ enum Canal
 
 class Value
 {
-    public:
-    Value() : canal(GRAY), value(0) {};
+public:
+    Value()
+        : canal(GRAY)
+        , value(0) {};
     Value(const Canal& canal_, const uint8_t& value_);
     Value(const Value& c);
 
@@ -25,7 +27,7 @@ class Value
 
 class Color
 {
-    public:
+public:
     Color();
     Color(const uint8_t& r, const uint8_t& g, const uint8_t& b);
     Color(const Color& p);
@@ -37,7 +39,9 @@ class Color
     Color operator*();
     std::ostream& operator<<(std::ostream& os);
 
-    std::vector<uint8_t> colors;    
+    std::vector<uint8_t> colors;
 };
+
+std::ostream& operator<<(std::ostream& out, Color& vect);
 
 #include "color.hxx"

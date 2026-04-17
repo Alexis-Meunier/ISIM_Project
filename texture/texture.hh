@@ -8,7 +8,7 @@ struct TextureInfo
 {
     float kd; // diffuse part
     float ks; // specular part
-    float kr; // refraction part
+    bool kr; // is glass ?
     float eta; // refraction index (air = 1, glass = 1.5, diamond = 2.4)
     Color* color; // Color of the light
     float lightPower; // Power of light emission
