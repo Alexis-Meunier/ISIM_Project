@@ -1,9 +1,9 @@
 #pragma once
 
+#include <vector>
+
 #include "object.hh"
 #include "triangle.hh"
-
-#include <vector>
 
 struct RotationCoords
 {
@@ -15,38 +15,38 @@ struct RotationCoords
 class Mesh : public Object
 {
 public:
-    static Mesh rectangle(
-        const Point4& top_left,
-        const Point4& top_right,
-        const Point4& bot_right,
-        const Point4& bot_left,
-        const std::shared_ptr<TextureMaterial>& texture);
-    static Mesh cube(
-        const Point4& top_left,
-        const Point4& top_right,
-        const Point4& bot_right,
-        const Point4& bot_left,
-        const float& height,
-        const std::shared_ptr<TextureMaterial>& texture);
+    static Mesh rectangle(const Point4& top_left, const Point4& top_right,
+                          const Point4& bot_right, const Point4& bot_left,
+                          const std::shared_ptr<TextureMaterial>& texture);
+    static Mesh cube(const Point4& top_left, const Point4& top_right,
+                     const Point4& bot_right, const Point4& bot_left,
+                     const float& height,
+                     const std::shared_ptr<TextureMaterial>& texture);
 
     static Mesh from_obj(const std::string& path,
-                            const std::shared_ptr<TextureMaterial>& texture,
-                        const Point4& offset = Point4(), const float& scale = 1.f, const RotationCoords& rotation = RotationCoords());
+                         const std::shared_ptr<TextureMaterial>& texture,
+                         const Point4& offset = Point4(),
+                         const float& scale = 1.f,
+                         const RotationCoords& rotation = RotationCoords());
 
-    std::optional<Point4> intersect(const Point4& start, const Vector4& dir) override;
+    std::optional<Point4> intersect(const Point4& start,
+                                    const Vector4& dir) override;
     Vector4 get_normal(const Point4& p) override;
     TextureInfo* get_texture(const Point4& p) override;
     AABB get_bounds() const override;
     Point4 get_centroid() const override;
     AABB compute_mesh_bounds();
-    Triangle* get_last_hit() const { return last_hit; };
+    Triangle* get_last_hit() const
+    {
+        return last_hit;
+    };
 
 private:
     void build_bvh();
 
     std::vector<Object*> triangles;
     Triangle* last_hit = nullptr; // which triangle was hit last
-    
+
     std::vector<BVHNode> bvh_pool;
     int bvh_root = -1;
 

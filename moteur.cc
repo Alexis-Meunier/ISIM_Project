@@ -89,7 +89,8 @@ Color compute_direct_rays(Scene& scene, const Point4& hit, Vector4& normal,
         // Shadow check
         auto [sh, so] =
             bvh_intersect(scene.bvh_pool, scene.objects, offset_hit, to_light);
-        if (sh && so != light_obj && !so->get_texture(*sh)->kr)
+        if (sh && so != light_obj && !so->get_texture(*sh)->kr
+            && so->get_texture(*sh)->lightPower == 0)
         {
             float to_blocker = distance(offset_hit, *sh);
             if (to_blocker < dist_to_light - 0.01f)
@@ -102,6 +103,18 @@ Color compute_direct_rays(Scene& scene, const Point4& hit, Vector4& normal,
         direct_r += (li->color->colors[RED] / 255.f) * power * ar;
         direct_g += (li->color->colors[GREEN] / 255.f) * power * ag;
         direct_b += (li->color->colors[BLUE] / 255.f) * power * ab;
+    }
+
+    if (direct_b > 1 || direct_g > 1 || direct_r > 1)
+    {
+        /*float maxi = std::max(std::max(direct_r, direct_g), direct_b);
+        direct_r /= maxi;
+        direct_g /= maxi;
+        direct_b /= maxi;*/
+
+        direct_r = std::min(1.0f, direct_r);
+        direct_g = std::min(1.0f, direct_g);
+        direct_b = std::min(1.0f, direct_b);
     }
 
     return Color(direct_r * 255, direct_g * 255, direct_b * 255);
@@ -263,17 +276,27 @@ Color compute_indirect_rays(Scene& scene, Object* obj, Vector4& normal,
         indirect_b /= nb_valid;
     }
 
+    if (indirect_b > 1 || indirect_g > 1 || indirect_r > 1)
+    {
+        /*float maxi = std::max(std::max(indirect_r, indirect_g), indirect_b);
+        indirect_r /= maxi;
+        indirect_g /= maxi;
+        indirect_b /= maxi;*/
+        indirect_r = std::min(1.0f, indirect_r);
+        indirect_g = std::min(1.0f, indirect_g);
+        indirect_b = std::min(1.0f, indirect_b);
+    }
+
     return Color(indirect_r * 255, indirect_g * 255, indirect_b * 255);
 }
 
 Color compute_light_rays(std::shared_ptr<TextureMaterial>& light_tex,
                          const Point4& hit, int depth)
 {
-    // Only consider the first depth, further depths will be handled later
     auto li = light_tex->get_elements(hit);
-    return Color(li->color->colors[RED] * li->lightPower,
-                 li->color->colors[GREEN] * li->lightPower,
-                 li->color->colors[BLUE] * li->lightPower);
+    float mini = std::min(1.0f, li->lightPower);
+    return Color(li->color->colors[RED] * mini, li->color->colors[GREEN] * mini,
+                 li->color->colors[BLUE] * mini);
 }
 
 Color cast_ray(const Point4& hit, Vector4& ray, Object* obj, Scene& scene,
@@ -310,9 +333,25 @@ Color cast_ray(const Point4& hit, Vector4& ray, Object* obj, Scene& scene,
     float indirect_g = indirect_c.colors[GREEN] / 255.f;
     float indirect_b = indirect_c.colors[BLUE] / 255.f;
 
-    return Color(std::min(255.f, (direct_r + indirect_r) * 255.f),
-                 std::min(255.f, (direct_g + indirect_g) * 255.f),
-                 std::min(255.f, (direct_b + indirect_b) * 255.f));
+    float contribution_r = direct_r + indirect_r;
+    float contribution_g = direct_g + indirect_g;
+    float contribution_b = direct_b + indirect_b;
+
+    if (contribution_b > 1 || contribution_g > 1 || contribution_r > 1)
+    {
+        /*float maxi =
+            std::max(std::max(contribution_r, contribution_g), contribution_b);
+        contribution_r /= maxi;
+        contribution_g /= maxi;
+        contribution_b /= maxi;*/
+        contribution_r = std::min(1.0f, contribution_r);
+        contribution_g = std::min(1.0f, contribution_g);
+        contribution_b = std::min(1.0f, contribution_b);
+    }
+
+    return Color(std::min(255.f, contribution_r * 255.f),
+                 std::min(255.f, contribution_g * 255.f),
+                 std::min(255.f, contribution_b * 255.f));
 }
 
 PPM computeScene(Scene& scene, const int& image_h, const int& image_w)
@@ -404,10 +443,13 @@ int main(int argc, char** argv)
     TextureInfo
     something_text{ kd: 0.3, ks: 0.3, color: new Color(0, 255, 255) };
     TextureInfo light;
-    light.kd = 0.5f;
-    light.ks = 0.2f;
+    light.kd = 1.0f;
     light.color = new Color(255, 255, 255);
-    light.lightPower = 0.8f;
+    light.lightPower = 1.0f;
+    TextureInfo light2;
+    light2.kd = 1.0f;
+    light2.color = new Color(200, 255, 0);
+    light2.lightPower = 0.5f;
     TextureInfo stronk_light;
     stronk_light.kd = 0.5f;
     stronk_light.ks = 0.2f;
@@ -420,145 +462,107 @@ int main(int argc, char** argv)
 
     // auto uniform_flat_white = std::make_shared<UniformTexture>(Color(255,
     // 255, 255));
+    // ── Textures (unchanged)
+    // ──────────────────────────────────────────────────
     auto new_text = std::make_shared<UniformTexture>(Color{ 255, 255, 255 }, 0,
-                                                     1, true, 1.5);
+                                                     1, true, 1.5); // glass
     auto new_textr = std::make_shared<UniformTexture>(Color{ 255, 255, 255 }, 0,
-                                                      1, false, 1.5);
-
-    auto sky = std::make_shared<ProceduralTexture>(ProceduralType::CLOUD, 1, 0);
+                                                      1, false, 1.5); // mirror
     auto sky_light = std::make_shared<ProceduralTexture>(ProceduralType::CLOUD,
                                                          1, 0, 0.8, true);
     auto wood = std::make_shared<ProceduralTexture>(ProceduralType::WOOD, 1, 0);
+    auto image_texture = std::make_shared<ImageTexture>("image.jpg");
     auto uniform_flat_blue =
         std::make_shared<UniformTexture>(Color(0, 100, 255));
     auto uniform_flat_green =
         std::make_shared<UniformTexture>(Color(100, 255, 37));
     auto uniform_flat_cyan =
         std::make_shared<UniformTexture>(Color(0, 255, 255));
+    auto uniform_metal_cyan =
+        std::make_shared<UniformTexture>(Color(100, 255, 255), 0.5, 0.5);
     auto uniform_mat_red = std::make_shared<UniformTexture>(&mat_red);
     auto light_texture = std::make_shared<LightTexture>(&light);
-    auto stronk_light_texture = std::make_shared<LightTexture>(&stronk_light);
-    auto image_texture = std::make_shared<ImageTexture>("image.jpg");
+    auto light_texture2 = std::make_shared<LightTexture>(&light2);
 
-    time_t load_textures = std::time(nullptr);
-    printTimeTaken(load_textureInfo, load_textures, "while loading textures.");
-
-    auto skull = Mesh::from_obj("skull.obj", uniform_mat_red,
-                                Point4(20, -20, 35), 0.7, { -90, 155, 0 });
-
-    // Sphere ball1(uniform_mat_red, Point4(5, -5, 15), 4);
-    Sphere light_ball(light_texture, Point4(0, 7, 0), 3);
-    Sphere light_ball2(light_texture, Point4(0, 0, -10), 3);
-    // Sphere sky_ball(sky, Point4(-15, 0, 30), 10);
-    // Sphere wood_ball(wood, Point4(15, 0, 30), 10);
-
-    time_t load_spheres = std::time(nullptr);
-    printTimeTaken(load_textures, load_spheres, "while loading spheres.");
-    auto new_text_triangle =
-        std::make_shared<UniformTexture>(Color{ 255, 255, 0 });
-    auto new_text_triangle1 =
-        std::make_shared<UniformTexture>(Color{ 0, 255, 100 });
-    auto new_text_triangle2 =
-        std::make_shared<UniformTexture>(Color{ 255, 50, 150 });
-
-    Sphere ball1(new_text, Point4(0, -4, 9), 3);
-    Sphere ball2(uniform_mat_red, Point4(-5, 0, 12), 2);
-    Sphere ball3(new_textr, Point4(5, 1, 11), 0.5);
-    Sphere light_ball1(light_texture, Point4(-20, 10, 10), 4);
-    // Sphere light_ball(light_texture, Point4(0, 15, 0), 4);
-    // Sphere light_ball1(light_texture, Point4(-20, 10, 10), 4);
-
-    Triangle triangle1 = Triangle(Point4(-200, -200, 30), Point4(200, -200, 30),
-                                  Point4(0, 200, 30), new_text_triangle);
-    Triangle triangle2 = Triangle(Point4(0, -10, -100), Point4(200, -10, 200),
-                                  Point4(-200, -10, 200), new_text_triangle1);
-    Triangle triangle3 = Triangle(Point4(-200, 20, 200), Point4(200, 20, 200),
-                                  Point4(0, 20, -100), new_text_triangle2);
-
-    // Complex *obj = new Complex(vec);
-
-    // PointLight top_light(Point4(0, 0, 5), 0.8);
-    // PointLight bot_light(Point4(3, 0, 2), 0.6);
-    // CircleLight circle_light(Point4(18, -5, 8), 0.6, 3, Point4(-7, 8, 6));
-
-    /*auto car =
-        Mesh::from_obj("plant.obj", uniform_mat_red, Point4(0, -20, 20), 1.7);
-    auto skull = Mesh::from_obj("skull.obj", uniform_mat_red,
-                                Point4(20, -20, 35), 0.7, { -90, 155, 0 });*/
-
-    time_t load_obj = std::time(nullptr);
-    printTimeTaken(load_spheres, load_obj, "while loading .obj files.");
-
-    // auto a_bound = Mesh::rectangle(Point4(-25, -5, 50), Point4(-5, -5, 50),
-    // Point4(-5, -5, 25), Point4(-25, -5, 25), wood); auto b_bound =
-    // Mesh::rectangle(Point4(-25, -5, 25), Point4(-5, -5, 25), Point4(-5, -20,
-    // 25), Point4(-25, -20, 25), wood); auto c_bound =
-    // Mesh::rectangle(Point4(-5, -5, 25), Point4(-5, -5, 50), Point4(-5, -20,
-    // 50), Point4(-5, -20, 25), wood);
+    // ── Room bounds (Cornell Box, same as before) ────────────────────────────
     auto bot_bound =
         Mesh::rectangle(Point4(-40, -20, 50), Point4(40, -20, 50),
-                        Point4(40, -20, 0), Point4(-40, -20, 0), image_texture);
+                        Point4(40, -20, 0), Point4(-40, -20, 0), new_textr);
     auto left_bound = Mesh::rectangle(
         Point4(-40, 20, -100), Point4(-40, 20, 50), Point4(-40, -20, 50),
         Point4(-40, -20, -100), uniform_flat_cyan);
     auto right_bound = Mesh::rectangle(Point4(40, 20, 50), Point4(40, 20, -100),
                                        Point4(40, -20, -100),
-                                       Point4(40, -20, 50), uniform_flat_blue);
+                                       Point4(40, -20, 50), uniform_metal_cyan);
     auto top_bound =
         Mesh::rectangle(Point4(-40, 20, -100), Point4(40, 20, -100),
                         Point4(40, 20, 50), Point4(-40, 20, 50), sky_light);
     auto forward_bound = Mesh::rectangle(
         Point4(-100, 20, 35), Point4(100, 20, 35), Point4(100, -20, 35),
-        Point4(-100, -20, 35), uniform_flat_green);
-    auto table = Mesh::cube(Point4(-20, -5, 35), Point4(-5, -5, 35),
-                            Point4(-5, -5, 15), Point4(-20, -5, 15), 5, wood);
+        Point4(-100, -20, 35), image_texture);
 
+    // ── Ball 1: glass sphere, LEFT side ──────────────────────────────────────
+    // Radius 5, sitting on the floor (y_floor=-20, so center y = -20+5 = -15)
+    const int r1 = 6;
+    const int x1 = -15, y1 = -20 + r1, z1 = 22;
+    Sphere ball1(new_text, Point4(x1, y1, z1), r1); // glass
+
+    // Pedestal/table under ball1 — height 5, same footprint as ball radius
+    auto wood_table =
+        Mesh::cube(Point4(x1 - r1, -17, z1 + r1), Point4(x1 + r1, -17, z1 + r1),
+                   Point4(x1 + r1, -17, z1 - r1), Point4(x1 - r1, -17, z1 - r1),
+                   3, // thickness (height)
+                   wood);
+
+    // ── Ball 2: mirror sphere, RIGHT side ────────────────────────────────────
+    // Radius 5, same floor height trick
+    const int r2 = 5;
+    const int x2 = 15, y2 = -20 + r2, z2 = 22;
+    Sphere reflect_ball(wood, Point4(x2, y2, z2), r2); // mirror
+
+    auto glass_table =
+        Mesh::cube(Point4(x2 - r2, -17, z2 + r2), Point4(x2 + r2, -17, z2 + r2),
+                   Point4(x2 + r2, -17, z2 - r2), Point4(x2 - r2, -17, z2 - r2),
+                   3, new_textr);
+
+    // ── Small decorative red ball in the centre-back ─────────────────────────
+    Sphere ball_center(uniform_mat_red, Point4(0, -20 + 3, 28), 3);
+
+    // ── Light ball (area light via ceiling, + small fill light) ──────────────
+    Sphere light_ball1(light_texture, Point4(-20, 10, 19), 4);
+    // Sphere light_ball2(light_texture2, Point4(20, 10, 15), 2);
+
+    // ── Camera ───────────────────────────────────────────────────────────────
     Vector4 looking_at(0, 0, 1);
     looking_at.normalize();
     Camera camera(Point4(0, 0, 0), looking_at, Vector4(0, 1, 0), 45, 45,
                   Point4(0, 0, 5));
 
+    // ── Scene assembly ───────────────────────────────────────────────────────
     Scene scene;
 
-    // scene.addObject(bot_bound);
-    // scene.addObject(top_bound);
-    // scene.addObject(right_bound);
-    // scene.addObject(left_bound);
-    // scene.addObject(forward_bound);
-
-    // // scene.addObject(car);
-    // scene.addObject(skull);
-
-    // scene.addObject(light_ball);
+    // Geometry
     scene.addObject(ball1);
-    scene.addObject(ball2);
-    scene.addObject(ball3);
-    /*scene.addObject(triangle1);
-    scene.addObject(triangle2);
-    scene.addObject(triangle3);
-    scene.addObject(light_ball);*/
-    scene.addLights(light_ball);
-    scene.addLights(light_ball2);
-    // scene.addObject(light_ball2);
-    scene.setCamera(camera);
-    // scene.addLights(light_ball);
-    // scene.addLights(light_ball2, false);
-    // scene.addLights(light_tri, false);
-    // scene.addObject(wood_ball);
-    // scene.addObject(sky_ball);
-    scene.addObject(table);
+    scene.addObject(reflect_ball);
+    scene.addObject(ball_center);
+    scene.addObject(wood_table);
+    scene.addObject(glass_table);
+
+    // Room
     scene.addObject(bot_bound);
-    scene.addLights(top_bound);
-    scene.addObject(right_bound);
     scene.addObject(left_bound);
+    scene.addObject(right_bound);
     scene.addObject(forward_bound);
-    scene.addObject(skull);
-    // scene.addObject(a_bound);
-    // scene.addObject(b_bound);
-    // scene.addObject(c_bound);
+
+    // Lights (top_bound is an emissive ceiling + one fill light)
+    scene.addLights(top_bound);
+    scene.addLights(light_ball1);
+    // scene.addLights(light_ball2);
+
+    scene.setCamera(camera);
 
     time_t start = std::time(nullptr);
-    auto img = computeScene(scene, 1080, 1080);
+    auto img = computeScene(scene, 800, 1000);
     time_t end = std::time(nullptr);
     printTimeTaken(start, end, "");
 
