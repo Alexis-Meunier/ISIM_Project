@@ -1,7 +1,5 @@
-# IA_LEARNING
+# ISIM
 
-## Summary
+## Overview
 
-A repository to implement my own AI algorithms.
-These concern all kinds of AI, such as image treatment, neural networks, llms, etc...
-
+The goal of this project is to re-implement a bidirectional path-tracer, and adding some specific textures / features (Mirror & Glass, Loaded Textures & Generic Textures).
